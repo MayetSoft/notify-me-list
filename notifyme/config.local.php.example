@@ -1,0 +1,14 @@
+<?php
+/**
+ * Optional local configuration. Copy to config.local.php to use it.
+ * Everything else is configured from the admin pages.
+ */
+
+// Store the data (database, keys, logs) somewhere else than notifyme/data:
+// define('NM_DATA', '/home/YOUR_USER/notifyme-data');
+
+// Force the interface language (otherwise: Admin > Settings). Must match a file in lang/.
+// define('NM_LANG', 'fr');
+
+// DEVELOPMENT ONLY — allows feeds on localhost/private networks (disables SSRF protection).
+// define('NM_ALLOW_PRIVATE_FEEDS', true);

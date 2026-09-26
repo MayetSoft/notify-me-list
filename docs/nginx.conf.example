@@ -1,0 +1,27 @@
+# Notify Me List — nginx equivalent of the .htaccess rules.
+# Only needed if you move away from Apache/LiteSpeed (cPanel uses Apache or LiteSpeed,
+# where the shipped .htaccess files already do this).
+
+server {
+    server_name example.com;
+    root /home/you/public_html;          # the folder that contains the files of "www"
+    index index.php;
+
+    # Private folder, if it had to be placed inside the web root (fallback layout).
+    location ^~ /notifyme/ { deny all; return 404; }
+
+    # Database, logs, lock files, examples, internal include files.
+    location ~* \.(sqlite|sqlite3|db|db-journal|sqlite-journal|sqlite-wal|sqlite-shm|log|lock|ini|example|md)$ { deny all; return 404; }
+    location ~ (^|/)(_boot\.php|notifyme-path\.php)$ { deny all; return 404; }
+    location ~ /\. { deny all; return 404; }   # .htaccess, .git...
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;   # adapt to your PHP-FPM socket
+    }
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+}

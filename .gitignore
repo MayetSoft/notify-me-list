@@ -1,0 +1,7 @@
+# Runtime data: database, secret keys, logs, lock files — never commit.
+notifyme/data/*
+!notifyme/data/.htaccess
+!notifyme/data/index.html
+notifyme/config.local.php
+www/notifyme-path.php
+.DS_Store
