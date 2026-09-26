@@ -46,6 +46,7 @@ if ($verbose) {
 }
 
 // Send a first batch right away (same function and limits as send-queue.php).
+Queue::startDueScheduled();
 if (!$noSend && Queue::remaining() > 0) {
     $r = Queue::process(setting_int('batch_size', 1, 500), 240);
     setting_set('cron_last_queue', (string) nm_now());

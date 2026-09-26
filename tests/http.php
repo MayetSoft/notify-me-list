@@ -137,6 +137,27 @@ test('public signup, campaign sent through the AJAX endpoint, unsubscribe link',
     @unlink($pub);
 });
 
+test('scheduling a message from the composer, then sending it now', function () use ($base, $mailDir) {
+    $r = http($base . 'admin/import.php');
+    http($base . 'admin/import.php', ['csrf' => csrf_of($r['body']), 'paste' => 'scheduled@example.com', 'general' => '1', 'note' => 'test', 'attest' => '1']);
+    $r = http($base . 'admin/send.php');
+    $r = http($base . 'admin/send.php', ['csrf' => csrf_of($r['body']), 'audience' => 'all', 'subject' => 'Plus tard', 'format' => 'text',
+        'body' => 'Later', 'when' => 'later', 'send_at' => date('Y-m-d\\TH:i', time() + 86400), 'action' => 'send']);
+    no_php_errors($r, 'scheduled campaign page');
+    check(strpos($r['body'], 'class="badge badge-sending"') !== false && strpos($r['body'], 'id="campaign"') === false, 'shown as scheduled, no progress bar');
+    preg_match('/name="id" value="(\d+)"/', $r['body'], $id);
+    $r = http($base . 'admin/send.php');
+    $bad = http($base . 'admin/send.php', ['csrf' => csrf_of($r['body']), 'audience' => 'all', 'subject' => 'x', 'format' => 'text', 'body' => 'x', 'when' => 'later', 'send_at' => '2001-01-01T10:00', 'action' => 'send']);
+    check(strpos($bad['body'], 'alert-error') !== false, 'past date refused');
+    $r = http($base . 'admin/campaigns.php?id=' . $id[1]);
+    $r = http($base . 'admin/campaigns.php', ['csrf' => csrf_of($r['body']), 'id' => $id[1], 'action' => 'send_now']);
+    check(strpos($r['body'], 'id="campaign"') !== false, 'now sending');
+    preg_match('/name="csrf-token" content="([^"]+)"/', $r['body'], $t);
+    $j = json_decode(http($base . 'admin/api.php', ['action' => 'process', 'campaign' => $id[1], 'csrf' => $t[1]])['body'], true);
+    check_same(1, $j['result']['sent'], 'sent');
+    check(strpos(last_mail($mailDir), 'scheduled@example.com') !== false, 'received');
+});
+
 test('self-service by magic link', function () use ($base, $mailDir) {
     $jar = sys_get_temp_dir() . '/nm-http-self-' . getmypid();
     $r = http($base . 'admin/import.php');

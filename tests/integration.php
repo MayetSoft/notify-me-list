@@ -186,6 +186,31 @@ test('hourly and daily caps stop before contacting the server', function () {
     Queue::setStatus($cid, 'cancelled');
 });
 
+echo "\nScheduling\n";
+
+test('scheduled message: nothing before its time, recipients chosen when it starts', function () use ($mailDir) {
+    sent_mails($mailDir);
+    $cid = Queue::createManual('Later', '<p>Later</p>', 'Later', 'general', time() + 3600);
+    check_same('scheduled', db_value('SELECT status FROM campaigns WHERE id = ?', [$cid]));
+    check_same(0, (int) db_value('SELECT COUNT(*) FROM queue WHERE campaign_id = ?', [$cid]), 'no recipients yet');
+    check_same(0, Queue::startDueScheduled(), 'not due');
+    check_same(0, Queue::process(100, 30)['sent'], 'nothing sent before the time');
+    Subscribers::import(['late@example.com'], true, [], 'test'); // joins after scheduling
+    Queue::reschedule($cid, time());
+    check_same('sending', db_value('SELECT status FROM campaigns WHERE id = ?', [$cid]));
+    Queue::process(100, 30);
+    check(in_array('late@example.com', array_column(sent_mails($mailDir), 'to'), true), 'late subscriber included');
+    check_same('done', db_value('SELECT status FROM campaigns WHERE id = ?', [$cid]));
+});
+
+test('a cancelled scheduled message never starts', function () {
+    $cid = Queue::createManual('Never', '<p>x</p>', 'x', 'general', time() + 120);
+    Queue::setStatus($cid, 'cancelled');
+    db_exec('UPDATE campaigns SET scheduled_at = ? WHERE id = ?', [time() - 10, $cid]);
+    check_same(0, Queue::startDueScheduled());
+    check_same('cancelled', db_value('SELECT status FROM campaigns WHERE id = ?', [$cid]));
+});
+
 echo "\nBounces\n";
 
 test('a permanent SMTP refusal at send time deactivates the address', function () use ($mailDir) {

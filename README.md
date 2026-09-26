@@ -58,10 +58,14 @@ Docker, no daemon. MIT licensed, every line is in this repository.
 **Admin side** (magic-link login, no password)
 - Dashboard: counts (overall, per feed, pending), paginated searchable list,
   health warnings (SMTP not set, cron not running, failing feeds…).
-- **Send a message**: subject + text or simple HTML, preview, send. One
-  individual e-mail per subscriber (never a BCC blast), each with its own
-  unsubscribe link, in batches with a delay, hourly and daily caps, and automatic pausing when the host reports its sending quota is reached. Live progress
-  bar in the browser (chunked AJAX), with the cron job as a background relay.
+- **Send a message**: subject + text or simple HTML, preview, send now or
+  **schedule** for later. One individual e-mail per subscriber (never a BCC
+  blast), each with its own unsubscribe link, in batches with a delay, hourly
+  and daily caps, and automatic pausing when the host reports its sending
+  quota is reached. Live progress bar in the browser (chunked AJAX), with the
+  cron job as a background relay.
+- **Bounces**: dead addresses are detected (SMTP refusals, and bounce e-mails
+  read from your mailbox over IMAP) and deactivated automatically.
 - **Feeds**: add / edit / pause / delete RSS or Atom feeds (auto-detected),
   each with its own check frequency, subscriber count and error status.
 - SMTP settings with an encrypted password and a **test e-mail** button.
@@ -374,6 +378,13 @@ this does not weaken security. With SSH you can instead run
   clickable) or simple HTML, *Preview*, then *Send* to queue. You are
   taken to the progress page; failed addresses are listed and can be retried.
   Temporary SMTP errors (4xx) are retried automatically (3 attempts).
+- **Schedule a message** — in the composer, choose *Schedule for* and a date
+  and time (in the time zone set in Settings). The message waits in *Sendings*
+  as *Scheduled*, where you can change the date, send it now or cancel it. The
+  recipient list is built when it starts, so people who subscribed or left in
+  the meantime are handled correctly. It needs the sending cron job: the
+  message leaves within 5 minutes of the chosen time (the dashboard warns if a
+  scheduled message is late).
 - **Feeds** — add a name + URL + frequency. The feed is fetched at once to
   validate it and to record its current items as the starting point. Tick
   *Also send to the subscribers of "<general list name>"* to deliver a feed to
@@ -534,7 +545,7 @@ an exotic bounce format may go unnoticed, and a bounce that arrives after the
 message was quoted in a forwarded thread is ignored on purpose.
 
 **Other.** One list per install (plus feeds). No WYSIWYG editor, no
-attachments, no scheduling of manual messages, no open/click statistics (by
+attachments, no open/click statistics (by
 design). A crash in the middle of a send (rare) marks the e-mails being sent
 as "interrupted" failures rather than risk a duplicate; you can retry them.
 
