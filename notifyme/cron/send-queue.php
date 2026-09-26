@@ -1,7 +1,7 @@
 <?php
-// CRON — sends the next batch of queued e-mails (manual campaigns and feed
-// digests), respecting batch size, delay between e-mails and hourly limit
-// (Admin > Settings).
+// CRON — starts the scheduled messages that are due, then sends the next
+// batch of queued e-mails (manual campaigns and feed digests), respecting
+// batch size, delay between e-mails and hourly/daily limits (Admin > Settings).
 //
 // cPanel > Cron Jobs, every 5 minutes:
 //   */5 * * * * php /home/YOUR_USER/notifyme/cron/send-queue.php >/dev/null 2>&1
@@ -27,6 +27,7 @@ foreach ($args as $a) {
 }
 
 setting_set('cron_last_queue', (string) nm_now());
+Queue::startDueScheduled();
 $total = ['sent' => 0, 'failed' => 0, 'skipped' => 0];
 for ($i = 0; $i < $batches; $i++) {
     if (Queue::remaining() === 0) {

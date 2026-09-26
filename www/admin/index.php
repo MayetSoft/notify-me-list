@@ -17,7 +17,7 @@ if (nm_is_post() && nm_post('action') === 'delete') {
 $stats = Subscribers::stats();
 $feeds = Feeds::all();
 $q = mb_substr(nm_get('q'), 0, 100);
-$status = in_array(nm_get('status'), ['active', 'pending'], true) ? nm_get('status') : '';
+$status = in_array(nm_get('status'), ['active', 'pending', 'bounced'], true) ? nm_get('status') : '';
 $list = nm_get('list');
 $perPage = 50;
 $total = Subscribers::countFiltered($q, $status, $list);
@@ -51,6 +51,13 @@ $failingFeeds = array_filter($feeds, function ($f) {
 if ($failingFeeds) {
     $warnings[] = ['warning', t('dashboard.warn_feeds_failing', ['n' => count($failingFeeds)]), 'admin/feeds.php'];
 }
+if (Bounces::enabled() && (string) setting('bounce_last_error', '') !== '') {
+    $warnings[] = ['warning', t('dashboard.warn_bounces', ['error' => (string) setting('bounce_last_error')]), 'admin/bounces.php'];
+}
+$scheduledLate = (int) db_value("SELECT COUNT(*) FROM campaigns WHERE status = 'scheduled' AND scheduled_at < ?", [nm_now() - 1800]);
+if ($scheduledLate > 0) {
+    $warnings[] = ['warning', t('dashboard.warn_scheduled_late', ['n' => $scheduledLate]), 'admin/cron.php'];
+}
 
 $baseQuery = array_filter(['q' => $q, 'status' => $status, 'list' => $list]);
 nm_layout_start('admin', t('nav.dashboard'), 'dashboard');
@@ -67,6 +74,9 @@ nm_layout_start('admin', t('nav.dashboard'), 'dashboard');
   <div class="stat"><span class="stat-value"><?= (int) $stats['active'] ?></span><span class="stat-label"><?= e(t('dashboard.active')) ?></span></div>
   <div class="stat"><span class="stat-value"><?= (int) $stats['general'] ?></span><span class="stat-label"><?= e(nm_general_label()) ?></span></div>
   <div class="stat"><span class="stat-value"><?= (int) $stats['pending'] ?></span><span class="stat-label"><?= e(t('dashboard.pending')) ?></span></div>
+  <?php if ($stats['bounced'] > 0): ?>
+  <div class="stat"><a class="stat-value" href="<?= e(nm_link('admin/bounces.php')) ?>"><?= (int) $stats['bounced'] ?></a><span class="stat-label"><?= e(t('dashboard.bounced')) ?></span></div>
+  <?php endif; ?>
   <div class="stat"><span class="stat-value"><?= (int) $stats['last7'] ?></span><span class="stat-label"><?= e(t('dashboard.last7')) ?></span></div>
   <div class="stat"><span class="stat-value"><?= (int) $queued ?></span><span class="stat-label"><?= e(t('dashboard.queued')) ?></span></div>
 </div>
@@ -97,6 +107,7 @@ nm_layout_start('admin', t('nav.dashboard'), 'dashboard');
       <option value=""><?= e(t('dashboard.all_statuses')) ?></option>
       <option value="active"<?= $status === 'active' ? ' selected' : '' ?>><?= e(t('status.active')) ?></option>
       <option value="pending"<?= $status === 'pending' ? ' selected' : '' ?>><?= e(t('status.pending')) ?></option>
+      <option value="bounced"<?= $status === 'bounced' ? ' selected' : '' ?>><?= e(t('status.bounced')) ?></option>
     </select>
     <select name="list" aria-label="<?= e(t('field.lists')) ?>">
       <option value=""><?= e(t('dashboard.all_lists')) ?></option>
@@ -123,7 +134,7 @@ nm_layout_start('admin', t('nav.dashboard'), 'dashboard');
     <?php foreach ($rows as $r): $names = nm_describe_lists((int) $r['general_list'] === 1, $r['feed_names']); ?>
       <tr>
         <td><a href="<?= e(nm_link('admin/subscriber.php', ['id' => $r['id']])) ?>"><?= e($r['email']) ?></a></td>
-        <td><span class="badge <?= $r['status'] === 'active' ? 'badge-ok' : 'badge-warn' ?>"><?= e(t('status.' . $r['status'])) ?></span></td>
+        <td><span class="badge <?= $r['status'] === 'active' ? 'badge-ok' : ($r['status'] === 'bounced' ? 'badge-error' : 'badge-warn') ?>"><?= e(t('status.' . $r['status'])) ?></span></td>
         <td class="nowrap"><?= e(nm_format_date($r['created_at'])) ?></td>
         <td class="small"><?= $names ? e(implode(', ', $names)) : '<span class="muted">' . e(t('dashboard.no_list')) . '</span>' ?></td>
         <td class="actions">

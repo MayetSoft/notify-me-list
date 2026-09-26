@@ -69,24 +69,74 @@ final class Queue
 
     // --- Creating campaigns ------------------------------------------------------
 
-    /** Creates a manual campaign and one queue row per recipient. Returns its id. */
-    public static function createManual(string $subject, string $html, string $text, string $audience): int
+    /**
+     * Creates a manual campaign. Sent now: one queue row per recipient is
+     * created immediately. Scheduled ($scheduledAt in the future): stored as
+     * "scheduled", and the recipients are only selected when it starts, so
+     * people who join or leave in the meantime are handled correctly.
+     */
+    public static function createManual(string $subject, string $html, string $text, string $audience, ?int $scheduledAt = null): int
     {
-        return db_tx(function (PDO $pdo) use ($subject, $html, $text, $audience) {
+        return db_tx(function (PDO $pdo) use ($subject, $html, $text, $audience, $scheduledAt) {
             $now = nm_now();
-            $pdo->prepare("INSERT INTO campaigns (kind, subject, body_html, body_text, audience, status, created_at) VALUES ('manual', ?, ?, ?, ?, 'sending', ?)")
-                ->execute([$subject, $html, $text, $audience, $now]);
+            $scheduled = $scheduledAt !== null && $scheduledAt > $now;
+            $pdo->prepare('INSERT INTO campaigns (kind, subject, body_html, body_text, audience, status, created_at, scheduled_at) VALUES (\'manual\', ?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$subject, $html, $text, $audience, $scheduled ? 'scheduled' : 'sending', $now, $scheduled ? $scheduledAt : null]);
             $id = (int) $pdo->lastInsertId();
-            list($w, $p) = self::audienceWhere($audience);
-            $st = $pdo->prepare("INSERT INTO queue (campaign_id, subscriber_id, email, payload, status, updated_at)
-                SELECT ?, s.id, s.email, '', 'pending', ? FROM subscribers s WHERE " . $w . ' ORDER BY s.id');
-            $st->execute(array_merge([$id, $now], $p));
-            $pdo->prepare('UPDATE campaigns SET total = ? WHERE id = ?')->execute([$st->rowCount(), $id]);
-            if ($st->rowCount() === 0) {
-                $pdo->prepare("UPDATE campaigns SET status = 'done', finished_at = ? WHERE id = ?")->execute([$now, $id]);
+            if (!$scheduled) {
+                self::populate($pdo, $id, $audience);
             }
             return $id;
         });
+    }
+
+    /** Creates the queue rows of a manual campaign (inside the caller's transaction). */
+    private static function populate(PDO $pdo, int $id, string $audience): void
+    {
+        $now = nm_now();
+        list($w, $p) = self::audienceWhere($audience);
+        $st = $pdo->prepare("INSERT INTO queue (campaign_id, subscriber_id, email, payload, status, updated_at)
+            SELECT ?, s.id, s.email, '', 'pending', ? FROM subscribers s WHERE " . $w . ' ORDER BY s.id');
+        $st->execute(array_merge([$id, $now], $p));
+        $pdo->prepare('UPDATE campaigns SET total = ? WHERE id = ?')->execute([$st->rowCount(), $id]);
+        if ($st->rowCount() === 0) {
+            $pdo->prepare("UPDATE campaigns SET status = 'done', finished_at = ? WHERE id = ?")->execute([$now, $id]);
+        }
+    }
+
+    /**
+     * Starts the scheduled campaigns whose time has come. Called by the cron
+     * scripts and at the beginning of every sending run. Safe to call from
+     * several processes: each campaign is claimed atomically.
+     */
+    public static function startDueScheduled(): int
+    {
+        $started = 0;
+        foreach (db_all("SELECT id, audience FROM campaigns WHERE status = 'scheduled' AND scheduled_at <= ? ORDER BY scheduled_at", [nm_now()]) as $c) {
+            $ok = db_tx(function (PDO $pdo) use ($c) {
+                $st = $pdo->prepare("UPDATE campaigns SET status = 'sending' WHERE id = ? AND status = 'scheduled'");
+                $st->execute([$c['id']]);
+                if ($st->rowCount() !== 1) {
+                    return false;
+                }
+                self::populate($pdo, (int) $c['id'], $c['audience']);
+                return true;
+            });
+            if ($ok) {
+                $started++;
+                nm_log('queue', 'Scheduled campaign #' . $c['id'] . ' started');
+            }
+        }
+        return $started;
+    }
+
+    /** Moves a scheduled campaign to another time (or now). */
+    public static function reschedule(int $cid, int $when): void
+    {
+        db_exec("UPDATE campaigns SET scheduled_at = ? WHERE id = ? AND status = 'scheduled'", [$when, $cid]);
+        if ($when <= nm_now()) {
+            self::startDueScheduled();
+        }
     }
 
     /**
@@ -285,6 +335,7 @@ final class Queue
     public static function process(int $max, int $timeBudget, ?int $campaignId = null): array
     {
         $r = ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'remaining' => 0, 'busy' => false, 'throttled' => false, 'host_limit' => '', 'smtp_error' => ''];
+        self::startDueScheduled();
         if (self::pausedUntil() > 0) {
             $r['throttled'] = true;
             $r['host_limit'] = (string) setting('send_paused_reason', '');
@@ -392,6 +443,11 @@ final class Queue
                     } else {
                         db_exec("UPDATE queue SET status = 'failed', attempts = ?, error = ?, updated_at = ? WHERE id = ?", [$attempts, mb_substr($e->getMessage(), 0, 500), nm_now(), $row['id']]);
                         $r['failed']++;
+                        if (!$e->isTemporary()) {
+                            // Permanent refusal of this recipient: counts as a bounce.
+                            $code = preg_match('/\b([45]\.\d{1,3}\.\d{1,3})\b/', $e->getMessage(), $cm) ? $cm[1] : (string) $e->smtpCode;
+                            Bounces::register($sub['email'], BounceParser::classify(strpos($code, '.') !== false ? $code : '', $e->getMessage()), $code, $e->getMessage(), 'smtp');
+                        }
                     }
                     nm_log('queue', 'Send to ' . $sub['email'] . ' failed: ' . $e->getMessage());
                     // Several refusals in a row usually mean an account-level problem
@@ -498,7 +554,7 @@ final class Queue
     {
         if ($status === 'cancelled') {
             db_exec("UPDATE queue SET status = 'skipped', error = 'cancelled', updated_at = ? WHERE campaign_id = ? AND status = 'pending'", [nm_now(), $cid]);
-            db_exec("UPDATE campaigns SET status = 'cancelled', finished_at = ? WHERE id = ? AND status IN ('sending','paused')", [nm_now(), $cid]);
+            db_exec("UPDATE campaigns SET status = 'cancelled', finished_at = ? WHERE id = ? AND status IN ('sending','paused','scheduled')", [nm_now(), $cid]);
         } elseif ($status === 'paused') {
             db_exec("UPDATE campaigns SET status = 'paused' WHERE id = ? AND status = 'sending'", [$cid]);
         } elseif ($status === 'sending') {

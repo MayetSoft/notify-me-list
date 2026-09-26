@@ -1,0 +1,66 @@
+# Builds the release ZIP and publishes a GitHub release when a version tag is
+# pushed, e.g.:  git tag v1.1.0 && git push origin v1.1.0
+# The tag must match NM_VERSION in notifyme/bootstrap.php.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, mbstring, openssl, dom, curl
+          coverage: none
+
+      - name: Check the tag matches NM_VERSION
+        run: |
+          version=$(sed -n "s/^define('NM_VERSION', '\([^']*\)');.*/\1/p" notifyme/bootstrap.php)
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match NM_VERSION ${version} in notifyme/bootstrap.php"
+            exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Run the tests
+        run: |
+          php tests/unit.php
+          php tests/integration.php
+          php tests/http.php
+          php tests/multi-instance.php
+
+      - name: Build the ZIP
+        run: tools/build-release.sh
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="${VERSION}" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > release-notes.md
+          {
+            echo
+            echo "### Install"
+            echo "Download **notify-me-list-${VERSION}.zip** below, unzip it, and follow the README (upload \`notifyme/\` and the contents of \`www/\`, then open \`install.php\`)."
+          } >> release-notes.md
+          cat release-notes.md
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "dist/notify-me-list-${VERSION}.zip" \
+            "dist/notify-me-list-${VERSION}.zip.sha256" \
+            --title "Notify Me List ${VERSION}" \
+            --notes-file release-notes.md

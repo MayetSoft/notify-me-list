@@ -185,14 +185,17 @@ class SmtpClient
 
     public function close(): void
     {
-        if (is_resource($this->sock)) {
+        $sock = $this->sock;
+        if (is_resource($sock)) {
             try {
                 $this->write("QUIT\r\n", 'QUIT');
                 $this->read();
             } catch (Throwable $e) {
-                // ignore
+                // ignore: write()/read() reset $this->sock when the peer is gone
             }
-            @fclose($this->sock);
+            if (is_resource($sock)) {
+                @fclose($sock);
+            }
         }
         $this->sock = null;
     }

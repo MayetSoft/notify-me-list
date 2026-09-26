@@ -78,6 +78,12 @@ final class CronSetup
         return $out;
     }
 
+    /** Comment line introducing this instance's jobs (several instances can share a crontab). */
+    public static function marker(): string
+    {
+        return '# Notify Me List — ' . NM_ROOT;
+    }
+
     /** Is this line one of ours (any PHP binary, any options)? Returns the job key or null. */
     public static function ownLine(string $line): ?string
     {
@@ -173,17 +179,25 @@ final class CronSetup
     public static function crontabInstall(bool $remove = false): void
     {
         $bin = self::crontabBinary();
+        $marker = self::marker();
+        $lines = preg_split('/\r?\n/', self::crontabRead());
         $kept = [];
-        foreach (preg_split('/\r?\n/', self::crontabRead()) as $line) {
-            if (self::ownLine($line) === null && !($line !== '' && trim($line) === '# Notify Me List')) {
-                $kept[] = $line;
+        foreach ($lines as $i => $line) {
+            if (self::ownLine($line) !== null || trim($line) === $marker) {
+                continue;
             }
+            // Comment written by 1.0.x (not instance-specific): drop it only when it
+            // introduces this instance's own lines, never another instance's.
+            if (trim($line) === '# Notify Me List' && isset($lines[$i + 1]) && self::ownLine($lines[$i + 1]) !== null) {
+                continue;
+            }
+            $kept[] = $line;
         }
         while ($kept && trim(end($kept)) === '') {
             array_pop($kept);
         }
         if (!$remove) {
-            $kept[] = '# Notify Me List';
+            $kept[] = $marker;
             foreach (self::lines() as $l) {
                 $kept[] = $l;
             }

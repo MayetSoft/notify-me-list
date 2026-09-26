@@ -61,7 +61,7 @@ main.wrap { padding-bottom: 40px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin: 0 0 18px; }
 .form label, .card > label { display: block; font-weight: 600; margin: 14px 0 6px; }
 .form label:first-of-type { margin-top: 0; }
-input[type=text], input[type=email], input[type=url], input[type=number], input[type=search], input[type=password], input:not([type]), select, textarea {
+input[type=text], input[type=email], input[type=url], input[type=number], input[type=search], input[type=password], input[type=datetime-local], input:not([type]), select, textarea {
   width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px;
   background: var(--surface); color: var(--text); font: inherit;
 }
@@ -112,7 +112,7 @@ form.inline { display: inline; margin: 0; }
 .badge-ok, .badge-done { color: var(--ok); border-color: var(--ok); }
 .badge-warn, .badge-paused { color: var(--warn); border-color: var(--warn); }
 .badge-error, .badge-cancelled { color: var(--error); border-color: var(--error); }
-.badge-sending { color: var(--accent); border-color: var(--accent); }
+.badge-sending, .badge-scheduled { color: var(--accent); border-color: var(--accent); }
 
 /* Tables */
 .table-wrap { overflow-x: auto; }
@@ -145,3 +145,4 @@ details summary { cursor: pointer; font-weight: 600; }
 ol.steps li { margin-bottom: 12px; }
 .prose p { margin: 0 0 1em; }
 .lang-switch { display: flex; gap: 12px; margin: -6px 0 12px; }
+.schedule input[type=datetime-local] { max-width: 260px; margin-top: 4px; }

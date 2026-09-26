@@ -13,7 +13,7 @@ if (defined('NM_ROOT')) {
     return;
 }
 
-define('NM_VERSION', '1.0.0');
+define('NM_VERSION', '1.1.0');
 define('NM_ROOT', __DIR__);
 define('NM_MIN_PHP', '7.4.0');
 
@@ -23,7 +23,8 @@ if (is_file(NM_ROOT . '/config.local.php')) {
 }
 
 if (!defined('NM_DATA')) {
-    define('NM_DATA', NM_ROOT . '/data');
+    // The NOTIFYME_DATA environment variable can point elsewhere (used by the test suite).
+    define('NM_DATA', getenv('NOTIFYME_DATA') ? rtrim((string) getenv('NOTIFYME_DATA'), '/\\') : NM_ROOT . '/data');
 }
 define('NM_DB_FILE', NM_DATA . '/notifyme.sqlite');
 define('NM_SECRET_FILE', NM_DATA . '/secret.php');
@@ -52,10 +53,13 @@ require NM_ROOT . '/lib/FeedParser.php';
 require NM_ROOT . '/lib/Feeds.php';
 require NM_ROOT . '/lib/Queue.php';
 require NM_ROOT . '/lib/Cron.php';
+require NM_ROOT . '/lib/Imap.php';
+require NM_ROOT . '/lib/Bounces.php';
 
 // The timezone setting (when installed) overrides the server default.
 if (nm_is_installed()) {
     try {
+        db_upgrade_if_needed();
         $tz = setting('timezone', '');
         if ($tz !== '' && in_array($tz, timezone_identifiers_list(), true)) {
             date_default_timezone_set($tz);

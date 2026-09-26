@@ -11,7 +11,7 @@ nm_require_admin();
 $feeds = Feeds::all();
 $errors = [];
 $preview = null;
-$v = ['subject' => '', 'format' => 'text', 'body' => '', 'audience' => 'general'];
+$v = ['subject' => '', 'format' => 'text', 'body' => '', 'audience' => 'general', 'when' => 'now', 'send_at' => date('Y-m-d\\TH:00', nm_now() + 7200)];
 
 if (nm_is_post()) {
     csrf_check();
@@ -27,6 +27,20 @@ if (nm_is_post()) {
     if ($v['body'] === '') {
         $errors[] = t('send.err_body');
     }
+    // Scheduling: the date is typed in the site's time zone (Admin > Settings).
+    $v['when'] = nm_post('when') === 'later' ? 'later' : 'now';
+    $v['send_at'] = nm_post('send_at', $v['send_at']);
+    $sendAt = null;
+    if ($v['when'] === 'later') {
+        $sendAt = preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $v['send_at']) ? strtotime($v['send_at']) : false;
+        if ($sendAt === false) {
+            $errors[] = t('send.err_schedule_invalid');
+        } elseif ($sendAt <= nm_now() + 60) {
+            $errors[] = t('send.err_schedule_past');
+        } elseif ($sendAt > nm_now() + 366 * 86400) {
+            $errors[] = t('send.err_schedule_far');
+        }
+    }
     if (!$errors) {
         if ($v['format'] === 'html') {
             $html = $v['body'];
@@ -38,8 +52,13 @@ if (nm_is_post()) {
         if (nm_post('action') === 'send') {
             if (!Mailer::isConfigured()) {
                 $errors[] = t('dashboard.warn_smtp');
-            } elseif (Queue::countAudience($v['audience']) === 0) {
+            } elseif ($sendAt === null && Queue::countAudience($v['audience']) === 0) {
                 $errors[] = t('send.err_no_recipients');
+            } elseif ($sendAt !== null) {
+                $cid = Queue::createManual($v['subject'], $html, $text, $v['audience'], $sendAt);
+                nm_log('queue', 'Manual campaign #' . $cid . ' scheduled for ' . date('c', $sendAt));
+                flash('success', t('send.scheduled_ok', ['date' => nm_format_date($sendAt)]));
+                nm_redirect(nm_link('admin/campaigns.php', ['id' => $cid]));
             } else {
                 $cid = Queue::createManual($v['subject'], $html, $text, $v['audience']);
                 nm_log('queue', 'Manual campaign #' . $cid . ' created for ' . $v['audience']);
@@ -90,6 +109,14 @@ nm_layout_start('admin', t('nav.send'), 'send');
   <label for="body"><?= e(t('send.body')) ?></label>
   <textarea id="body" name="body" rows="14" required class="mono"><?= e($v['body']) ?></textarea>
   <p class="help"><?= e(t('send.body_help')) ?></p>
+
+  <fieldset class="schedule">
+    <legend><?= e(t('send.when')) ?></legend>
+    <label class="check"><input type="radio" name="when" value="now"<?= $v['when'] === 'now' ? ' checked' : '' ?>> <span><?= e(t('send.when_now')) ?></span></label>
+    <label class="check"><input type="radio" name="when" value="later"<?= $v['when'] === 'later' ? ' checked' : '' ?>> <span><?= e(t('send.when_later')) ?></span></label>
+    <input type="datetime-local" name="send_at" value="<?= e($v['send_at']) ?>" aria-label="<?= e(t('send.when_later')) ?>" step="60">
+    <p class="help"><?= e(t('send.schedule_help', ['tz' => date_default_timezone_get()])) ?></p>
+  </fieldset>
 
   <div class="button-row">
     <button type="submit" name="action" value="preview" class="btn"><?= e(t('send.preview')) ?></button>

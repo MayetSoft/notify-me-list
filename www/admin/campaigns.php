@@ -25,6 +25,17 @@ if (nm_is_post()) {
     } elseif ($action === 'retry') {
         $n = Queue::retryFailed($cid);
         flash('success', t('campaign.retried', ['n' => $n]));
+    } elseif ($action === 'send_now') {
+        Queue::reschedule($cid, nm_now());
+        nm_redirect(nm_link('admin/campaigns.php', ['id' => $cid, 'autostart' => 1]));
+    } elseif ($action === 'reschedule') {
+        $when = preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', nm_post('send_at')) ? strtotime(nm_post('send_at')) : false;
+        if ($when === false || $when <= nm_now() + 60 || $when > nm_now() + 366 * 86400) {
+            flash('error', t('send.err_schedule_past'));
+        } else {
+            Queue::reschedule($cid, $when);
+            flash('success', t('send.scheduled_ok', ['date' => nm_format_date($when)]));
+        }
     } elseif ($action === 'delete') {
         Queue::delete($cid);
         flash('success', t('campaign.deleted'));
@@ -49,6 +60,23 @@ if ($campaign):
   <?= e(t('campaign.kind_' . $campaign['kind'])) ?> · <?= e(Queue::audienceLabel($campaign['audience'])) ?> · <?= e(nm_format_date($campaign['created_at'])) ?>
 </p>
 
+<?php if ($campaign['status'] === 'scheduled'): ?>
+<section class="card">
+  <p><span class="badge badge-sending"><?= e(t('campaign.status_scheduled')) ?></span>
+    <strong><?= e(t('campaign.scheduled_for', ['date' => nm_format_date($campaign['scheduled_at'])])) ?></strong></p>
+  <p class="help"><?= e(t('campaign.scheduled_help', ['n' => Queue::countAudience($campaign['audience'])])) ?></p>
+  <form method="post" action="<?= e(nm_link('admin/campaigns.php')) ?>" class="form">
+    <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $id ?>">
+    <label for="send_at"><?= e(t('campaign.reschedule')) ?></label>
+    <input type="datetime-local" id="send_at" name="send_at" step="60" value="<?= e(date('Y-m-d\TH:i', (int) $campaign['scheduled_at'])) ?>">
+    <div class="button-row">
+      <button type="submit" name="action" value="reschedule" class="btn"><?= e(t('campaign.reschedule_button')) ?></button>
+      <button type="submit" name="action" value="send_now" class="btn btn-primary" data-confirm="<?= e(t('send.confirm')) ?>"><?= e(t('campaign.send_now')) ?></button>
+      <button type="submit" name="action" value="cancel" class="btn btn-danger-outline" data-confirm="<?= e(t('campaign.cancel_confirm')) ?>"><?= e(t('campaign.cancel')) ?></button>
+    </div>
+  </form>
+</section>
+<?php else: ?>
 <section class="card" id="campaign" data-campaign="<?= (int) $id ?>" data-api="<?= e(nm_link('admin/api.php')) ?>"
          data-autostart="<?= nm_get('autostart') === '1' && $campaign['status'] === 'sending' ? '1' : '0' ?>">
   <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= (int) $p['percent'] ?>">
@@ -88,6 +116,7 @@ if ($campaign):
   </div>
   <p class="help"><?= e(t('campaign.help_background')) ?></p>
 </section>
+<?php endif; ?>
 
 <?php if ($errorsList): ?>
 <section class="card">
@@ -135,7 +164,7 @@ nm_layout_start('admin', t('nav.campaigns'), 'campaigns');
   <tbody>
   <?php foreach ($rows as $c): ?>
     <tr>
-      <td class="nowrap small"><?= e(nm_format_date($c['created_at'])) ?></td>
+      <td class="nowrap small"><?= $c['status'] === 'scheduled' ? '⏱ ' . e(nm_format_date($c['scheduled_at'])) : e(nm_format_date($c['created_at'])) ?></td>
       <td><a href="<?= e(nm_link('admin/campaigns.php', ['id' => $c['id']])) ?>"><?= e($c['subject']) ?></a></td>
       <td class="small"><?= e(t('campaign.kind_' . $c['kind'])) ?></td>
       <td><span class="badge badge-<?= e($c['status']) ?>"><?= e(t('campaign.status_' . $c['status'])) ?></span></td>

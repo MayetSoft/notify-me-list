@@ -1,0 +1,60 @@
+# Lint + unit, integration and end-to-end web tests on every supported PHP
+# version, for every pull request and every push to main. Also builds the
+# release ZIP so each run offers a ready-to-upload package as an artifact.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, sqlite3, mbstring, openssl, dom, curl
+          ini-values: error_reporting=E_ALL, display_errors=On, memory_limit=256M
+          coverage: none
+
+      - name: Lint every PHP file
+        run: |
+          find notifyme www tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > lint.log || { grep -v '^No syntax errors' lint.log; exit 1; }
+
+      - name: Unit tests
+        run: php tests/unit.php
+
+      - name: Integration tests (SMTP, IMAP, feeds)
+        run: php tests/integration.php
+
+      - name: End-to-end web tests
+        run: php tests/http.php
+
+      - name: Two instances on the same domain
+        run: php tests/multi-instance.php
+
+  package:
+    name: Release ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: tools/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notify-me-list-zip
+          path: dist/
+          retention-days: 14
