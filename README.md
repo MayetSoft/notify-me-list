@@ -33,7 +33,8 @@ Docker, no daemon. MIT licensed, every line is in this repository.
 10. [Limitations — please read](#limitations--please-read)
 11. [Troubleshooting](#troubleshooting)
 12. [Updating, backing up, reinstalling](#updating-backing-up-reinstalling)
-13. [License](#license)
+13. [For developers](#for-developers)
+14. [License](#license)
 
 ---
 
@@ -150,8 +151,11 @@ docs/nginx.conf.example    if you ever move to nginx
 
 ### 1. Download
 
-Download this repository as a ZIP (green *Code* button › *Download ZIP*) and
-unzip it on your computer. You need the `notifyme` and `www` folders.
+Go to the repository's **Releases** page (right-hand column on GitHub) and
+download `notify-me-list-<version>.zip` from the latest release. Unzip it on
+your computer: you get the `notifyme` and `www` folders plus this README.
+(The green *Code › Download ZIP* button works too, but also contains the test
+suite, which you do not need on the server.)
 
 ### 2. Upload — choose a layout
 
@@ -574,13 +578,41 @@ as "interrupted" failures rather than risk a duplicate; you can retry them.
 
 - **Back up** the whole `notifyme/data/` folder (database + `secret.php`).
   Copy it while no cron job is running, or use cPanel's backup.
-- **Update**: replace every file *except* `notifyme/data/` (and your own
-  `config.local.php` / `notifyme-path.php`). The database schema is created
-  with `IF NOT EXISTS` statements and versioned for future migrations.
+- **Update**: download the new release ZIP, then upload and replace every
+  file *except* `notifyme/data/` (and your own `config.local.php` /
+  `notifyme-path.php`). Database changes are applied automatically on the
+  first page load after the upload (versioned migrations, run once). See
+  [CHANGELOG.md](CHANGELOG.md) for what changed. Delete `install.php` again
+  if you re-uploaded it.
 - **Reinstall from scratch**: delete `notifyme/data/notifyme.sqlite`,
   `secret.php`, `installed.lock` (this erases all subscribers), put
   `install.php` back and open it.
 - **Uninstall**: delete the two folders and the cron jobs.
+
+---
+
+## For developers
+
+No dependencies, no build step. From a clone:
+
+```sh
+php tests/unit.php          # parsers, SSRF guard, crypto, MIME, translations
+php tests/integration.php   # real SMTP/IMAP/HTTP round-trips against local test servers
+php tests/http.php          # every page under PHP's built-in web server, both languages
+tools/build-release.sh      # dist/notify-me-list-<version>.zip, from git HEAD
+```
+
+The tests need the PHP CLI with `pdo_sqlite`, `mbstring`, `openssl`, `dom`
+and `curl`; they start their own throw-away SMTP, IMAP and web servers on
+free local ports and never touch `notifyme/data/`. Any PHP warning or
+deprecation fails them.
+
+GitHub Actions runs lint and the three suites on PHP 7.4, 8.0, 8.1, 8.2,
+8.3 and 8.4 for every pull request and push to `main`, and attaches the
+release ZIP to each run (*Artifacts*). To publish a release: bump
+`NM_VERSION` in `notifyme/bootstrap.php`, add a section to `CHANGELOG.md`,
+merge, then push a matching tag (`git tag v1.1.0 && git push origin v1.1.0`):
+the *Release* workflow tests, builds and publishes it.
 
 ---
 

@@ -6,6 +6,16 @@
  */
 $GLOBALS['nm_tests'] = ['passed' => 0, 'failed' => 0, 'current' => '', 'failures' => []];
 
+// Any PHP warning, notice or deprecation (not silenced with @) fails the test run.
+error_reporting(E_ALL);
+set_error_handler(function ($no, $message, $file, $line) {
+    if (!(error_reporting() & $no)) {
+        return false; // silenced with @
+    }
+    fail_test('PHP error: ' . $message . ' @ ' . basename($file) . ':' . $line);
+    return true;
+});
+
 function test(string $name, callable $fn): void
 {
     $GLOBALS['nm_tests']['current'] = $name;
