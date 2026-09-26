@@ -9,6 +9,15 @@
  */
 require __DIR__ . '/_boot.php';
 
+// Interface language of the wizard (and default language of the install).
+$nmInstallLang = isset($_REQUEST['lang']) && is_string($_REQUEST['lang']) ? $_REQUEST['lang'] : 'fr';
+if (!preg_match('/^[a-z]{2}(_[A-Z]{2})?$/', $nmInstallLang) || !is_file(NM_ROOT . '/lang/' . $nmInstallLang . '.php')) {
+    $nmInstallLang = 'fr';
+}
+if (!defined('NM_LANG') && !nm_is_installed()) {
+    define('NM_LANG', $nmInstallLang);
+}
+
 function nm_install_page(string $title, string $body): void
 {
     header('Content-Type: text/html; charset=utf-8');
@@ -95,6 +104,11 @@ if (nm_is_post() && !$missing) {
                 'smtp_verify_cert' => $v['smtp_verify_cert'] === '1' ? '1' : '0',
                 'from_name' => $v['from_name'],
                 'from_email' => $v['from_email'],
+                // Texts shown to subscribers, created in the chosen language.
+                'language' => $nmInstallLang,
+                'general_list_label' => t('general.default_label'),
+                'consent_text' => t('default.consent_text'),
+                'feed_subject' => t('default.feed_subject'),
             ];
             foreach ($settings as $k => $val) {
                 setting_set($k, $val);
@@ -117,9 +131,7 @@ if (nm_is_post() && !$missing) {
             nm_log('app', 'Installation completed (version ' . NM_VERSION . ')');
             nm_admin_login($v['admin_email']);
 
-            $php = 'php';
-            $cronFeeds = $php . ' ' . NM_ROOT . '/cron/check-feeds.php';
-            $cronQueue = $php . ' ' . NM_ROOT . '/cron/send-queue.php';
+            $cronLines = CronSetup::lines();
             $body = '<h1>' . e(t('install.done_title')) . '</h1>';
             if ($testResult) {
                 $body .= '<div class="alert alert-' . e($testResult[0]) . '">' . e($testResult[1]) . '</div>';
@@ -127,8 +139,8 @@ if (nm_is_post() && !$missing) {
             $body .= '<div class="alert alert-success">' . e(t('install.done_body')) . '</div>'
                 . '<h2>' . e(t('install.next_steps')) . '</h2><ol class="steps">'
                 . '<li>' . e(t('install.step_delete')) . '</li>'
-                . '<li>' . e(t('install.step_cron')) . '<pre class="code">*/15 * * * * ' . e($cronFeeds) . " &gt;/dev/null 2&gt;&amp;1\n"
-                . '*/5 * * * * ' . e($cronQueue) . ' &gt;/dev/null 2&gt;&amp;1</pre>'
+                . '<li>' . e(t('install.step_cron')) . ' <a href="admin/cron.php">' . e(t('install.step_cron_link')) . '</a>'
+                . '<pre class="code">' . e(implode("\n", $cronLines)) . '</pre>'
                 . '<p class="muted small">' . e(t('install.step_cron_php')) . '</p></li>'
                 . '<li>' . e(t('install.step_feeds')) . '</li></ol>'
                 . '<p><a class="btn btn-primary" href="admin/index.php">' . e(t('install.go_admin')) . '</a></p>';
@@ -142,6 +154,11 @@ if (nm_is_post() && !$missing) {
 ob_start();
 ?>
 <h1><?= e(t('install.title')) ?></h1>
+<p class="lang-switch">
+  <?php foreach (nm_available_languages() as $l): ?>
+    <?= $l === $nmInstallLang ? '<strong>' . e(nm_language_name($l)) . '</strong>' : '<a href="install.php?lang=' . e($l) . '">' . e(nm_language_name($l)) . '</a>' ?>
+  <?php endforeach; ?>
+</p>
 <p class="lead"><?= e(t('install.intro')) ?></p>
 
 <section class="card">
@@ -166,6 +183,7 @@ ob_start();
   <?php endif; ?>
   <form method="post" action="install.php" class="form">
     <?= csrf_field() ?>
+    <input type="hidden" name="lang" value="<?= e($nmInstallLang) ?>">
     <section class="card">
       <h2><?= e(t('install.section_site')) ?></h2>
       <label for="site_name"><?= e(t('settings.site_name')) ?></label>

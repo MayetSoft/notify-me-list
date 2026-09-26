@@ -37,10 +37,10 @@ $lastQueue = (int) setting('cron_last_queue', 0);
 $lastFeeds = (int) setting('cron_last_feeds', 0);
 $queued = Queue::remaining();
 if ($feeds && $lastFeeds < nm_now() - 3 * 3600) {
-    $warnings[] = ['warning', $lastFeeds ? t('dashboard.warn_cron_feeds_old', ['date' => nm_format_date($lastFeeds)]) : t('dashboard.warn_cron_feeds_never'), ''];
+    $warnings[] = ['warning', $lastFeeds ? t('dashboard.warn_cron_feeds_old', ['date' => nm_format_date($lastFeeds)]) : t('dashboard.warn_cron_feeds_never'), 'admin/cron.php'];
 }
 if ($queued > 0 && $lastQueue < nm_now() - 3600) {
-    $warnings[] = ['warning', t('dashboard.warn_cron_queue', ['n' => $queued]), 'admin/campaigns.php'];
+    $warnings[] = ['warning', t('dashboard.warn_cron_queue', ['n' => $queued]), 'admin/cron.php'];
 }
 $failingFeeds = array_filter($feeds, function ($f) {
     return (int) $f['error_count'] >= 3 && (int) $f['active'] === 1;

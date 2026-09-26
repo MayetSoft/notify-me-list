@@ -123,9 +123,10 @@ nm_layout_start('admin', t('nav.settings'), 'settings');
         <label for="language"><?= e(t('settings.language')) ?></label>
         <select id="language" name="language">
           <?php foreach (nm_available_languages() as $l): ?>
-            <option value="<?= e($l) ?>"<?= $v['language'] === $l ? ' selected' : '' ?>><?= e($l) ?></option>
+            <option value="<?= e($l) ?>"<?= $v['language'] === $l ? ' selected' : '' ?>><?= e(nm_language_name($l)) ?></option>
           <?php endforeach; ?>
         </select>
+        <p class="help"><?= e(t('settings.language_help')) ?></p>
       </div>
       <div>
         <label for="timezone"><?= e(t('settings.timezone')) ?></label>

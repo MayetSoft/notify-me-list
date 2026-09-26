@@ -59,7 +59,7 @@ function nm_fail(string $title, string $message, int $httpCode = 500): void
         http_response_code($httpCode);
         header('Content-Type: text/html; charset=utf-8');
     }
-    echo '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+    echo '<!doctype html><html lang="' . e(nm_language_code()) . '"><head><meta charset="utf-8">'
         . '<meta name="viewport" content="width=device-width,initial-scale=1">'
         . '<title>' . e($title) . '</title>'
         . '<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f5f4;color:#1c1917;'
@@ -114,6 +114,17 @@ function nm_language_code(): string
         }
     }
     return $code;
+}
+
+/** Display name of a language file ("Français", "English"...). */
+function nm_language_name(string $code): string
+{
+    $file = NM_ROOT . '/lang/' . $code . '.php';
+    if (!preg_match('/^[a-z]{2}(_[A-Z]{2})?$/', $code) || !is_file($file)) {
+        return $code;
+    }
+    $strings = require $file;
+    return isset($strings['language.name']) ? $strings['language.name'] : $code;
 }
 
 function nm_available_languages(): array

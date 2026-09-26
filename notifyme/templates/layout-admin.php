@@ -11,6 +11,7 @@ $nav = [
     'feeds' => ['admin/feeds.php', t('nav.feeds')],
     'import' => ['admin/import.php', t('nav.import')],
     'export' => ['admin/export.php', t('nav.export')],
+    'cron' => ['admin/cron.php', t('nav.cron')],
     'settings' => ['admin/settings.php', t('nav.settings')],
     'smtp' => ['admin/smtp.php', t('nav.smtp')],
 ];

@@ -144,3 +144,4 @@ pre.code { background: var(--bg); border: 1px solid var(--border); border-radius
 details summary { cursor: pointer; font-weight: 600; }
 ol.steps li { margin-bottom: 12px; }
 .prose p { margin: 0 0 1em; }
+.lang-switch { display: flex; gap: 12px; margin: -6px 0 12px; }

@@ -10,8 +10,12 @@ Made for **ordinary cPanel shared hosting** (o2switch, etc.): upload the files
 by FTP or the File Manager, open a URL, done. No Composer, no build step, no
 Docker, no daemon. MIT licensed, every line is in this repository.
 
-> The interface is in French by default. All texts live in one file:
-> `notifyme/lang/fr.php` (see [Translating](#translating)).
+> The interface and e-mails are available in **French (default) and
+> English** — pick the language on the first screen of the installer, change it
+> later in the settings. All texts live in one file per language,
+> `notifyme/lang/fr.php` and `notifyme/lang/en.php` (see
+> [Translating](#translating)). Screen names below are given in English, with
+> the French label in brackets when it helps.
 
 ---
 
@@ -113,7 +117,7 @@ half-working.
 notifyme/                  PRIVATE: code + data. Ideally OUTSIDE public_html.
 ├── bootstrap.php
 ├── lib/                   application code (SMTP client, feeds, queue…)
-├── lang/fr.php            ALL interface and e-mail texts
+├── lang/fr.php, en.php    ALL interface and e-mail texts, one file per language
 ├── templates/
 │   ├── email/feed-digest.html.php   ← the feed e-mail template (edit freely)
 │   ├── email/feed-digest.txt.php    ← its plain-text version
@@ -185,6 +189,7 @@ user). After installation `notifyme/data/secret.php` is set to 600.
 Open `https://your-domain/newsletter/install.php` **right after uploading**
 (until it is completed, anyone who finds the URL could run it). It:
 
+- lets you choose the language (Français / English, top of the page),
 - checks PHP and the extensions,
 - asks for the site name, **your e-mail** (admin login + default sender), the
   public URL, and your SMTP settings (it can send you a test e-mail),
@@ -197,7 +202,10 @@ Open `https://your-domain/newsletter/install.php` **right after uploading**
 
 It is locked, but delete it anyway (the dashboard reminds you until you do).
 
-### 6. Set up the two cron jobs (next section)
+### 6. Turn on the two cron jobs
+
+Admin › **Cron jobs** (*Tâches cron*) can add them for you — see the next
+section.
 
 ### 7. Share the form
 
@@ -207,8 +215,26 @@ Link to `https://your-domain/newsletter/` from your site.
 
 ## The two cron jobs
 
-In cPanel › **Cron Jobs** › *Add New Cron Job*. The installer's final page
-shows these commands with **your real paths** — copy them from there.
+Yes, cPanel supports cron jobs (*Advanced › Cron Jobs*). Notify Me List needs
+two of them. The admin page **Cron jobs** (*Tâches cron*) shows whether they
+run (last execution time of each) and offers three ways to create them, from
+the easiest to the most manual:
+
+1. **One click, via `crontab`** — on hosts that let PHP run the `crontab`
+   command, an *Install the cron jobs* button adds the two lines to your
+   account's crontab (they then show up in cPanel › Cron Jobs). Your other
+   cron jobs are kept; clicking again replaces our lines instead of
+   duplicating them; a *Remove* button takes them out. Many shared hosts
+   block this; the page tells you if yours does.
+2. **With a cPanel API token** — in cPanel › *Security › Manage API Tokens*,
+   create a token, paste it on the Cron jobs page with your cPanel username
+   (pre-filled) and click *Add the jobs through cPanel*. The app calls your own
+   cPanel (`https://your-domain:2083`, API 2 `Cron::fetchcron` /
+   `Cron::add_line`), adds whatever is missing, and **forgets the token
+   immediately** (it is never stored). Delete the token in cPanel afterwards.
+3. **By hand** — the page (and the installer's last screen) shows the exact
+   commands with **your real paths and PHP binary**; paste them in cPanel ›
+   *Cron Jobs* › *Add New Cron Job*:
 
 | Job | Command | Recommended interval |
 |---|---|---|
@@ -220,10 +246,11 @@ Minutes* (or type `*/15` / `*/5` in *Minute* and `*` everywhere else) and
 paste the command.
 
 Notes:
-- If `php` is not found, use the full path of the PHP binary your host
-  documents, often `/usr/local/bin/php` (or `/usr/local/bin/ea-php82` for a
-  specific version). It must be the **command-line** PHP with the same
-  extensions as your site.
+- The PHP program is auto-detected (the command-line PHP of the same version
+  as your site, e.g. `/opt/cpanel/ea-php82/root/usr/bin/php` or
+  `/opt/alt/php82/usr/bin/php`), falling back to plain `php`. If your host
+  documents another path, set it at the bottom of the Cron jobs page; the
+  generated lines follow.
 - Want an e-mail from cron when something fails? Remove `>/dev/null 2>&1` and
   set the cron e-mail address in cPanel; add `-v` to see what happens.
 - The feed frequency you choose per feed (15 min … daily) is honoured only if
@@ -236,18 +263,18 @@ Notes:
   `php ~/notifyme/cron/check-feeds.php --force -v`
 
 **Throughput** = batch size × runs per hour, capped by "maximum per hour"
-(Admin › Réglages). Defaults: 20 per batch, 1 s apart, every 5 minutes →
+(Admin › Settings). Defaults: 20 per batch, 1 s apart, every 5 minutes →
 up to 240/hour, capped at 200/hour.
 
 ### What if I have no cron at all?
 
 - **Sending still works**: keep the campaign page open in your browser, it
   sends batch after batch by itself. If you close it, sending pauses and
-  resumes when you reopen the page (*Envois* menu). The same page sends queued
+  resumes when you reopen the page (*Sendings* menu). The same page sends queued
   feed e-mails.
 - **Feeds are NOT checked automatically.** There is deliberately no
   "check when someone visits" trick (it is unreliable on low-traffic sites and
-  slows visitors down). You can still click *Vérifier* on the Feeds page to
+  slows visitors down). You can still click *Check* on the Feeds page to
   check a feed by hand. Without cron, feed notifications are therefore manual.
 - The dashboard warns you when a cron job has not run recently.
 
@@ -256,7 +283,7 @@ up to 240/hour, capped at 200/hour.
 ## Logging in to the admin
 
 Go to `…/newsletter/admin/`, type the admin e-mail, click the link you receive
-(valid 15 minutes, single use), then click *Me connecter*.
+(valid 15 minutes, single use), then click *Log me in*.
 
 Why a button after the link? Many mail providers' security scanners "click"
 every link in incoming mail. If the link logged in (or confirmed a
@@ -272,7 +299,7 @@ admin's (no way to probe it).
 
 1. With the cPanel File Manager, create an **empty file** named
    `emergency-login.txt` in `notifyme/data/`.
-2. Reload the admin login page: an *Accès de secours* button appears for one
+2. Reload the admin login page: an *Emergency login* button appears for one
    hour. Clicking it logs you in once and deletes the file.
 
 Anyone who can create files in your hosting already controls everything, so
@@ -283,29 +310,29 @@ this does not weaken security. With SSH you can instead run
 
 ## Everyday use
 
-- **Opt-in mode** — Admin › Réglages › *Mode d'inscription*. Switching is
+- **Opt-in mode** — Admin › Settings › *Signup mode*. Switching is
   instant; existing active subscribers are unaffected; pending ones stay
   pending (their confirmation links keep working). Unconfirmed signups are
   deleted after N days (30 by default).
 - **Send a message** — pick the recipients (general list — the default —, the
   subscribers of one feed, or everyone), write in plain text (links become
-  clickable) or simple HTML, *Aperçu* to preview, *Envoyer* to queue. You are
+  clickable) or simple HTML, *Preview*, then *Send* to queue. You are
   taken to the progress page; failed addresses are listed and can be retried.
   Temporary SMTP errors (4xx) are retried automatically (3 attempts).
 - **Feeds** — add a name + URL + frequency. The feed is fetched at once to
   validate it and to record its current items as the starting point. Tick
-  *Envoyer aussi aux abonnés de « <general list name> »* to deliver a feed to
+  *Also send to the subscribers of "<general list name>"* to deliver a feed to
   the general list as well ("sent to everyone" feeds). Pausing a feed stops checks
   and hides it from the form; subscribers stay linked.
 - **Import** — CSV file or pasted list, one address per line or a column named
   `email` (`;`, `,` or tab detected). Choose the lists, describe where consent
   came from, and tick the attestation. Consent is stored as
-  "Importé manuellement par l'administrateur (you@…) le 26/09/2026 14:03 — your
-  note". Already-known addresses only get the extra lists; their own consent
+  "Imported manually by the administrator (you@…) on 2026-09-26 14:03 — your
+  note" (in the interface language). Already-known addresses only get the extra lists; their own consent
   trail is kept.
 - **Export** — CSV with e-mail, status, signup/confirmation dates, IP, consent
   text, origin, general list yes/no, feeds, choices at signup. Semicolon
-  (French Excel) or comma. Formula-looking cells are neutralised.
+  (Excel in French and other European locales) or comma. Formula-looking cells are neutralised.
 
 ### Unsubscribe behaviour
 
@@ -314,7 +341,7 @@ this does not weaken security. With SSH you can instead run
 - Mail clients' built-in "Unsubscribe" button (RFC 8058) does the same.
 - To remove only one feed, people use *Gérer mon abonnement*.
 - If you notice people being unsubscribed by their company's link scanner,
-  tick *Demander un clic de confirmation* in the settings: the page then asks
+  tick *Ask for a confirmation click on the unsubscribe page* in the settings: the page then asks
   for one click first (the mail-client button stays immediate).
 
 ---
@@ -323,12 +350,18 @@ this does not weaken security. With SSH you can instead run
 
 ### Translating
 
-1. Copy `notifyme/lang/fr.php` to e.g. `notifyme/lang/en.php`.
-2. Translate the values (keep the keys and the `{placeholders}`).
-3. Choose the language in Admin › Réglages. Missing keys fall back to French.
+French (`fr.php`) and English (`en.php`) are included. To add a language:
 
-The installer uses French until a language is chosen; you can force one with
-`define('NM_LANG', 'en');` in `notifyme/config.local.php`.
+1. Copy `notifyme/lang/en.php` to e.g. `notifyme/lang/de.php`.
+2. Translate the values (keep the keys and the `{placeholders}`); set
+   `'language.name'` to the language's own name.
+3. It appears automatically in the installer and in Admin › Settings ›
+   *Language*. Missing keys fall back to French.
+
+Switching language changes the interface and automatic e-mails. Texts you
+typed yourself (list name, consent text, feed e-mail subject, privacy text)
+are stored as typed: adapt them in the settings. You can also force a
+language with `define('NM_LANG', 'en');` in `notifyme/config.local.php`.
 
 ### E-mail look
 
@@ -337,7 +370,7 @@ The installer uses French until a language is chosen; you can force one with
   (plain-text part). Variables are documented at the top of the file.
 - Messages, welcome, confirmation, login e-mails:
   `notifyme/templates/email/layout.html.php` / `layout.txt.php`.
-- Wording: `notifyme/lang/fr.php`.
+- Wording: `notifyme/lang/fr.php` / `en.php`.
 
 ### Pages
 
@@ -378,8 +411,10 @@ opened in an iframe **from the same domain** (other domains are blocked by
 - Signup form: honeypot field, minimum fill time, 10 signups/hour/IP, 3 e-mails
   per address per 15 minutes.
 - **No telemetry, no tracking pixel, no click tracking, no external fonts or
-  scripts.** The only outgoing connections are to your SMTP server and to the
-  feed URLs you add.
+  scripts.** The only outgoing connections are to your SMTP server, to the
+  feed URLs you add, and — only when you use that button — to your own cPanel
+  to create the cron jobs (the API token is used for that one request and
+  never stored).
 - Data minimisation: unsubscribing deletes the row; unconfirmed signups are
   purged after N days; logs (`notifyme/data/logs/`) rotate at 1 MB.
 - GDPR helpers: consent text + date + IP stored per subscriber, double opt-in
@@ -393,7 +428,7 @@ opened in an iframe **from the same domain** (other domains are blocked by
 **Shared-hosting mail limits.** Most shared hosts cap outgoing e-mails per hour
 and/or per day (often a few hundred per hour, sometimes per mailbox); going
 over can get messages refused or your account suspended. Check your host's
-documentation and set *Maximum par heure* below that limit. The default
+documentation and set *Maximum per hour* below that limit. The default
 (200/hour) is conservative.
 
 **Scale.**
@@ -448,13 +483,14 @@ as "interrupted" failures rather than risk a duplicate; you can retry them.
 | "Le dossier privé « notifyme » est introuvable" | The public files cannot find `notifyme/`. Use layout A or B above, or create `notifyme-path.php`. |
 | "Configuration PHP incomplète" / pdo_sqlite | cPanel › *Select PHP Version* › *Extensions*: tick `pdo_sqlite` and `sqlite3`. |
 | Installer: cannot write `secret.php` | `notifyme/data/` must be writable (755 or 775). |
-| Test e-mail: connection failed | Wrong host/port/encryption, or the host blocks that port. Try 465 + SSL/TLS, or 587 + STARTTLS. The *Détail de l'échange* box shows the SMTP dialogue. |
-| Test e-mail: certificate error | Use the server name your host gives for mail (its certificate name, e.g. the machine name) instead of `mail.yourdomain`. Unticking *Vérifier le certificat* is a last resort. |
+| Test e-mail: connection failed | Wrong host/port/encryption, or the host blocks that port. Try 465 + SSL/TLS, or 587 + STARTTLS. The *Details of the conversation with the server* box shows the SMTP dialogue. |
+| Test e-mail: certificate error | Use the server name your host gives for mail (its certificate name, e.g. the machine name) instead of `mail.yourdomain`. Unticking *Verify the server's TLS certificate* is a last resort. |
 | Test e-mail: 535 authentication | Username is usually the full e-mail address; retype the password. |
 | E-mails "sent" but not received | Check spam; set up SPF/DKIM; make sure the sender address belongs to your domain / SMTP account. |
+| Automatic cron setup: "Username or API token refused" | Check the cPanel username (top right of cPanel) and create a fresh token; the host must be your cPanel address (port 2083). |
 | Cannot log in (no e-mail) | [Emergency access](#emergency-access-e-mail-broken-cannot-receive-the-link). |
-| Dashboard says cron has not run | Check the command path (`php` vs `/usr/local/bin/php`), remove `>/dev/null 2>&1` temporarily to receive cron's output by e-mail. |
-| Links in e-mails point to the wrong address | Admin › Réglages › *Adresse publique de l'application*. |
+| Dashboard / Cron jobs page says a job has not run | Open Admin › Cron jobs: check the lines are installed and the PHP path (a web-only PHP such as `lsphp` or `php-fpm` cannot run cron scripts). Remove `>/dev/null 2>&1` temporarily in cPanel to receive cron's output by e-mail. |
+| Links in e-mails point to the wrong address | Admin › Settings › *Public address of the application*. |
 | Anything else | Look at `notifyme/data/logs/*.log`. |
 
 ---

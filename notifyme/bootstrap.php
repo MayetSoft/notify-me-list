@@ -51,6 +51,7 @@ require NM_ROOT . '/lib/FeedFetcher.php';
 require NM_ROOT . '/lib/FeedParser.php';
 require NM_ROOT . '/lib/Feeds.php';
 require NM_ROOT . '/lib/Queue.php';
+require NM_ROOT . '/lib/Cron.php';
 
 // The timezone setting (when installed) overrides the server default.
 if (nm_is_installed()) {
