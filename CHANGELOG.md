@@ -20,6 +20,13 @@ keep `notifyme/data/`; database changes are applied automatically.
   8.4 for every change.
 
 ### Fixed
+- Several installations on the **same domain** (e.g. `/list-a/` and
+  `/list-b/`) shared one PHP session: logging in to one admin could open the
+  other, and a subscriber's self-service page could show another instance's
+  subscriber. The session cookie is now named per installation and limited to
+  its folder. Existing logins are asked to sign in again once after updating.
+- Automatic cron setup: each installation now marks its own lines, so
+  installing or removing one never touches another's.
 - Closing an SMTP connection the server had already dropped could end the
   request with a fatal error on PHP 8.
 

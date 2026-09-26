@@ -437,15 +437,52 @@ function nm_detect_base_url(): string
 // Session, CSRF, flash messages
 // ---------------------------------------------------------------------------
 
+/**
+ * URL path of the public folder, with a trailing slash ("/newsletter/"),
+ * worked out from the current request. "/" if it cannot be determined.
+ */
+function nm_web_path(): string
+{
+    static $path = null;
+    if ($path !== null) {
+        return $path;
+    }
+    $path = '/';
+    if (defined('NM_WEB_DIR') && isset($_SERVER['SCRIPT_NAME'], $_SERVER['SCRIPT_FILENAME'])) {
+        $scriptDir = realpath(dirname((string) $_SERVER['SCRIPT_FILENAME']));
+        $webDir = realpath(NM_WEB_DIR);
+        if ($scriptDir && $webDir && strpos($scriptDir . DIRECTORY_SEPARATOR, $webDir . DIRECTORY_SEPARATOR) === 0) {
+            // Pages live in the public folder or one of its sub-folders (admin/).
+            $depth = $scriptDir === $webDir ? 0 : substr_count(substr($scriptDir, strlen($webDir)), DIRECTORY_SEPARATOR);
+            $url = str_replace('\\', '/', dirname((string) $_SERVER['SCRIPT_NAME']));
+            for ($i = 0; $i < $depth; $i++) {
+                $url = str_replace('\\', '/', dirname($url));
+            }
+            $url = rtrim($url, '/');
+            if (preg_match('~^[A-Za-z0-9/._\~%-]*$~', $url)) {
+                $path = $url . '/';
+            }
+        }
+    }
+    return $path;
+}
+
+/**
+ * Starts the PHP session. The cookie is specific to this installation: its
+ * name derives from the private data folder and it is limited to the public
+ * folder's path, so several instances on the same domain (e.g. /list-a/ and
+ * /list-b/) never share a session, a login or a CSRF token.
+ */
 function nm_session_start(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE || nm_is_cli()) {
         return;
     }
-    session_name('nm_session');
+    $data = realpath(NM_DATA);
+    session_name('nm_' . substr(sha1($data !== false ? $data : NM_DATA), 0, 12));
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/',
+        'path' => nm_web_path(),
         'secure' => nm_is_https(),
         'httponly' => true,
         'samesite' => 'Lax',

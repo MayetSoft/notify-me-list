@@ -43,6 +43,9 @@ jobs:
       - name: End-to-end web tests
         run: php tests/http.php
 
+      - name: Two instances on the same domain
+        run: php tests/multi-instance.php
+
   package:
     name: Release ZIP
     runs-on: ubuntu-latest

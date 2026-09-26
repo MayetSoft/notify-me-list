@@ -27,14 +27,15 @@ Docker, no daemon. MIT licensed, every line is in this repository.
 4. [Installation on cPanel, step by step](#installation-on-cpanel-step-by-step)
 5. [The two cron jobs](#the-two-cron-jobs)
 6. [Logging in to the admin](#logging-in-to-the-admin)
-7. [Everyday use](#everyday-use)
-8. [Customising](#customising)
-9. [Security and data protection](#security-and-data-protection)
-10. [Limitations — please read](#limitations--please-read)
-11. [Troubleshooting](#troubleshooting)
-12. [Updating, backing up, reinstalling](#updating-backing-up-reinstalling)
-13. [For developers](#for-developers)
-14. [License](#license)
+7. [Several sites on the same hosting account](#several-sites-on-the-same-hosting-account)
+8. [Everyday use](#everyday-use)
+9. [Customising](#customising)
+10. [Security and data protection](#security-and-data-protection)
+11. [Limitations — please read](#limitations--please-read)
+12. [Troubleshooting](#troubleshooting)
+13. [Updating, backing up, reinstalling](#updating-backing-up-reinstalling)
+14. [For developers](#for-developers)
+15. [License](#license)
 
 ---
 
@@ -371,6 +372,49 @@ this does not weaken security. With SSH you can instead run
 
 ---
 
+## Several sites on the same hosting account
+
+You can run one independent installation per site (each with its own
+subscribers, settings, admin, SMTP account and cron jobs). Use one private
+folder per installation, **with a different name**, and tell each public
+folder which one is its own:
+
+```
+/home/youruser/
+├── nm-site-a/                 ← the "notifyme" folder of site A, renamed
+├── nm-site-b/                 ← the "notifyme" folder of site B, renamed
+├── site-a.com/newsletter/     ← contents of www/  + notifyme-path.php
+└── site-b.com/newsletter/     ← contents of www/  + notifyme-path.php
+```
+
+In each public folder, copy `notifyme-path.php.example` to
+`notifyme-path.php` and put the path of its private folder:
+
+```php
+<?php return '/home/youruser/nm-site-a';
+```
+
+(Without this file, a public folder looks for a folder named exactly
+`notifyme` above it and could pick up another site's.) Then run each
+`install.php` and set up each installation's cron jobs from its *Cron jobs*
+page: each has its own two lines, and the automatic setup only ever touches
+its own lines.
+
+- **Same domain is fine too** (`example.com/list-a/` and `example.com/list-b/`):
+  sessions are separate per installation (cookie named per installation and
+  limited to its folder), so logins never mix — even with the same admin
+  e-mail.
+- **Sending quota**: each installation counts its own e-mails, but your host's
+  limit may apply to the whole account. Share it out in each installation's
+  *Maximum per hour / per day* (e.g. 3 sites and 300/hour → about 90 each).
+  If the server still refuses, only the installation that hit the limit pauses.
+- For deliverability, give each site a sender address (and ideally an SMTP
+  mailbox) on its own domain, with SPF/DKIM set up for that domain.
+- Updating: replace the files of each installation separately; each database
+  upgrades itself on its first page load.
+
+---
+
 ## Everyday use
 
 - **Opt-in mode** — Admin › Settings › *Signup mode*. Switching is
@@ -599,6 +643,7 @@ No dependencies, no build step. From a clone:
 php tests/unit.php          # parsers, SSRF guard, crypto, MIME, translations
 php tests/integration.php   # real SMTP/IMAP/HTTP round-trips against local test servers
 php tests/http.php          # every page under PHP's built-in web server, both languages
+php tests/multi-instance.php  # two installations on the same domain stay isolated
 tools/build-release.sh      # dist/notify-me-list-<version>.zip, from git HEAD
 ```
 

@@ -36,6 +36,7 @@ jobs:
           php tests/unit.php
           php tests/integration.php
           php tests/http.php
+          php tests/multi-instance.php
 
       - name: Build the ZIP
         run: tools/build-release.sh
