@@ -1,0 +1,24 @@
+Return-path: <>
+Envelope-to: news@example.com
+From: Mail Delivery System <Mailer-Daemon@server.example.net>
+To: news@example.com
+Subject: Mail delivery failed: returning message to sender
+X-Failed-Recipients: dead@example.org
+Auto-Submitted: auto-replied
+Content-Type: text/plain; charset=us-ascii
+
+This message was created automatically by mail delivery software.
+
+A message that you sent could not be delivered to one or more of its
+recipients. This is a permanent error. The following address(es) failed:
+
+  dead@example.org
+    host mx.example.org [192.0.2.1]
+    SMTP error from remote mail server after RCPT TO:<dead@example.org>:
+    550 5.1.1 <dead@example.org>: Recipient address rejected: User unknown in virtual mailbox table
+
+------ This is a copy of the message, including all the headers. ------
+
+From: My Blog <news@example.com>
+To: <dead@example.org>
+Subject: New on My Blog

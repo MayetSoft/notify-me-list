@@ -1,0 +1,13 @@
+From: Mail Delivery Subsystem <mailer-daemon@googlemail.com>
+To: news@example.com
+Subject: Delivery Status Notification (Delay)
+Content-Type: multipart/report; boundary="d1"; report-type=delivery-status
+
+--d1
+Content-Type: message/delivery-status
+
+Final-Recipient: rfc822; slow@example.com
+Action: delayed
+Status: 4.4.7
+
+--d1--

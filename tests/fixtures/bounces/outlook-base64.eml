@@ -1,0 +1,15 @@
+From: postmaster@outlook.example
+To: news@example.com
+Subject: Undeliverable: New on My Blog
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="xyz"
+
+--xyz
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+WW91ciBtZXNzYWdlIHRvIG5vYm9keUBleGFtcGxlLmNvbSBjb3VsZG4ndCBiZSBkZWxpdmVyZWQu
+Ck5vYm9keSB3YXNuJ3QgZm91bmQgYXQgZXhhbXBsZS5jb20uClJlbW90ZSBTZXJ2ZXIgcmV0dXJu
+ZWQgJzU1MCA1LjEuMTAgUkVTT0xWRVIuQURSLlJlY2lwaWVudE5vdEZvdW5kOyBSZWNpcGllbnQg
+bm90IGZvdW5kIGJ5IFNNVFAgYWRkcmVzcyBsb29rdXAnCg==
+--xyz--

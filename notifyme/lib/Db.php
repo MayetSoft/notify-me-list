@@ -73,9 +73,52 @@ function db_placeholders(array $values): string
     return implode(', ', array_fill(0, max(1, count($values)), '?'));
 }
 
-const NM_SCHEMA_VERSION = 1;
+const NM_SCHEMA_VERSION = 2;
 
-/** Creates or upgrades the schema. Safe to call repeatedly. */
+/**
+ * Schema changes after version 1, applied in order by db_migrate().
+ * Never edit a released migration: add a new one.
+ */
+function db_migrations(): array
+{
+    return [
+        // 1.1.0: bounce handling + scheduled campaigns.
+        2 => [
+            "ALTER TABLE subscribers ADD COLUMN bounce_hard INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscribers ADD COLUMN bounce_soft INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscribers ADD COLUMN last_bounce_at INTEGER",
+            "ALTER TABLE subscribers ADD COLUMN last_bounce_reason TEXT NOT NULL DEFAULT ''",
+            "CREATE TABLE IF NOT EXISTS bounce_log (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                email         TEXT NOT NULL,
+                subscriber_id INTEGER,
+                kind          TEXT NOT NULL,          -- hard | soft
+                status_code   TEXT NOT NULL DEFAULT '',
+                reason        TEXT NOT NULL DEFAULT '',
+                source        TEXT NOT NULL,          -- imap | smtp
+                created_at    INTEGER NOT NULL
+            )",
+            "CREATE INDEX IF NOT EXISTS idx_bounce_log_created ON bounce_log(created_at)",
+            "ALTER TABLE campaigns ADD COLUMN scheduled_at INTEGER",
+        ],
+    ];
+}
+
+/** Current schema version stored in the database (0 if none). */
+function db_schema_version(): int
+{
+    try {
+        $v = db()->query("SELECT value FROM settings WHERE key = 'schema_version'")->fetchColumn();
+        return $v === false ? 0 : (int) $v;
+    } catch (Throwable $e) {
+        return 0;
+    }
+}
+
+/**
+ * Creates or upgrades the schema. Safe to call repeatedly and from several
+ * processes at once (upgrades run inside an exclusive transaction).
+ */
 function db_migrate(): void
 {
     $pdo = db();
@@ -202,8 +245,33 @@ CREATE TABLE IF NOT EXISTS send_log (
 CREATE INDEX IF NOT EXISTS idx_send_log ON send_log(sent_at);
 SQL
     );
-    $pdo->prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
-        ->execute(['schema_version', (string) NM_SCHEMA_VERSION]);
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        $current = max(1, db_schema_version()); // the statements above are version 1
+        foreach (db_migrations() as $version => $statements) {
+            if ($version <= $current) {
+                continue;
+            }
+            foreach ($statements as $sql) {
+                $pdo->exec($sql);
+            }
+            $current = $version;
+        }
+        $pdo->prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')->execute(['schema_version', (string) $current]);
+        $pdo->exec('COMMIT');
+    } catch (Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
+/** Upgrades an installed database after new files were uploaded. */
+function db_upgrade_if_needed(): void
+{
+    if (db_schema_version() < NM_SCHEMA_VERSION) {
+        db_migrate();
+        nm_log('app', 'Database upgraded to schema version ' . NM_SCHEMA_VERSION);
+    }
 }
 
 /** Periodic cleanup, called from the cron scripts. */
@@ -218,4 +286,5 @@ function db_housekeeping(): void
     db_exec("DELETE FROM subscribers WHERE status = 'pending' AND created_at < ?", [$now - $days * 86400]);
     // Finished campaigns keep their stats; the per-recipient rows are trimmed after 90 days.
     db_exec("DELETE FROM queue WHERE status IN ('sent','skipped') AND updated_at < ?", [$now - 90 * 86400]);
+    db_exec('DELETE FROM bounce_log WHERE created_at < ?', [$now - 365 * 86400]);
 }

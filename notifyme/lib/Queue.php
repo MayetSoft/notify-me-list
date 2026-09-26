@@ -392,6 +392,11 @@ final class Queue
                     } else {
                         db_exec("UPDATE queue SET status = 'failed', attempts = ?, error = ?, updated_at = ? WHERE id = ?", [$attempts, mb_substr($e->getMessage(), 0, 500), nm_now(), $row['id']]);
                         $r['failed']++;
+                        if (!$e->isTemporary()) {
+                            // Permanent refusal of this recipient: counts as a bounce.
+                            $code = preg_match('/\b([45]\.\d{1,3}\.\d{1,3})\b/', $e->getMessage(), $cm) ? $cm[1] : (string) $e->smtpCode;
+                            Bounces::register($sub['email'], BounceParser::classify(strpos($code, '.') !== false ? $code : '', $e->getMessage()), $code, $e->getMessage(), 'smtp');
+                        }
                     }
                     nm_log('queue', 'Send to ' . $sub['email'] . ' failed: ' . $e->getMessage());
                     // Several refusals in a row usually mean an account-level problem

@@ -122,6 +122,11 @@ final class Subscribers
 
         if ($existing) {
             $id = (int) $existing['id'];
+            if ($existing['status'] === 'bounced') {
+                // Deactivated after bounces and signing up again: start over (confirmation
+                // e-mail in double opt-in, which itself proves the address works again).
+                db_exec("UPDATE subscribers SET status = 'pending', bounce_hard = 0, bounce_soft = 0, last_bounce_reason = '' WHERE id = ?", [$id]);
+            }
             db_exec(
                 'UPDATE subscribers SET ip = ?, consent_text = ?, signup_lists = ?, updated_at = ? WHERE id = ?',
                 [$ip, $consent, $snapshot, $now, $id]
@@ -232,7 +237,7 @@ final class Subscribers
             $where[] = "s.email LIKE ? ESCAPE '\\'";
             $params[] = '%' . strtr(mb_strtolower($search), ['\\' => '\\\\', '%' => '\\%', '_' => '\\_']) . '%';
         }
-        if ($status === 'active' || $status === 'pending') {
+        if ($status === 'active' || $status === 'pending' || $status === 'bounced') {
             $where[] = 's.status = ?';
             $params[] = $status;
         }
@@ -277,6 +282,7 @@ final class Subscribers
         return [
             'active' => (int) db_value("SELECT COUNT(*) FROM subscribers WHERE status = 'active'"),
             'pending' => (int) db_value("SELECT COUNT(*) FROM subscribers WHERE status = 'pending'"),
+            'bounced' => (int) db_value("SELECT COUNT(*) FROM subscribers WHERE status = 'bounced'"),
             'general' => (int) db_value("SELECT COUNT(*) FROM subscribers WHERE status = 'active' AND general_list = 1"),
             'last7' => (int) db_value("SELECT COUNT(*) FROM subscribers WHERE status = 'active' AND created_at > ?", [nm_now() - 7 * 86400]),
         ];

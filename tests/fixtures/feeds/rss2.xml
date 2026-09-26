@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel><title>Blog test</title><link>https://example.com/</link>
+<item><title>Deuxième article</title><link>https://example.com/2</link><guid>post-2</guid><pubDate>Tue, 02 Sep 2026 10:00:00 +0200</pubDate><description>&lt;p&gt;Résumé &lt;b&gt;deux&lt;/b&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;/p&gt;</description></item>
+<item><title>Premier article</title><link>/relative/1</link><guid isPermaLink="false">post-1</guid><dc:date>2026-09-01T10:00:00+02:00</dc:date><content:encoded><![CDATA[<p>Contenu <em>un</em></p>]]></content:encoded></item>
+<item><title></title><link>javascript:alert(1)</link><description>Sans titre ni guid</description></item>
+</channel></rss>

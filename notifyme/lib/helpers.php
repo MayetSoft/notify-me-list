@@ -204,6 +204,19 @@ function nm_default_settings(): array
         'from_name' => '',
         'from_email' => '',
         'reply_to' => '',
+        // Bounce handling (Admin > Bounces)
+        'bounce_enabled' => '0',
+        'bounce_return_path' => '',          // envelope sender; empty = from_email
+        'bounce_same_as_smtp' => '1',        // read the SMTP mailbox with the SMTP credentials
+        'imap_host' => '',
+        'imap_port' => '993',
+        'imap_encryption' => 'ssl',          // ssl | tls | none
+        'imap_username' => '',
+        'imap_password' => '',               // encrypted
+        'imap_folder' => 'INBOX',
+        'bounce_action' => 'seen',           // seen | delete | none (what to do with processed bounce e-mails)
+        'bounce_hard_threshold' => '1',
+        'bounce_soft_threshold' => '5',
         'schema_version' => '0',
     ];
 }

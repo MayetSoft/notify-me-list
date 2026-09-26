@@ -9,6 +9,7 @@
 //   --force        check every active feed now, ignoring their frequency
 //   --feed=ID      check only this feed
 //   --no-send      only queue, do not send (let send-queue.php do it)
+// It also reads the bounce mailbox when bounce handling is on (Admin > Bounces).
 //   -v             print what happens
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -51,6 +52,20 @@ if (!$noSend && Queue::remaining() > 0) {
     if ($verbose) {
         printf("Sent: %d, failed: %d, skipped: %d, remaining: %d%s\n", $r['sent'], $r['failed'], $r['skipped'], $r['remaining'],
             $r['busy'] ? ' (another process is sending)' : ($r['throttled'] ? ($r['host_limit'] !== '' ? ' (paused: SMTP server sending limit — ' . $r['host_limit'] . ')' : ' (hourly/daily limit reached)') : ($r['smtp_error'] ? ' SMTP: ' . $r['smtp_error'] : '')));
+    }
+}
+
+// Bounce mailbox (Admin > Bounces), at most every 15 minutes.
+if (Bounces::enabled() && (int) setting('bounce_last_run', 0) < nm_now() - 840) {
+    try {
+        $b = Bounces::processMailbox();
+        if ($verbose) {
+            printf("Bounces: %d message(s) checked, %d bounce(s), %d subscriber(s) deactivated\n", $b['checked'], $b['bounces'], $b['deactivated']);
+        }
+    } catch (Throwable $e) {
+        if ($verbose) {
+            echo 'Bounce mailbox error: ' . $e->getMessage() . PHP_EOL;
+        }
     }
 }
 

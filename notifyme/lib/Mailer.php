@@ -34,6 +34,8 @@ final class Mailer
             'from_email' => $fromEmail,
             'from_name' => $fromName !== '' ? $fromName : nm_site_name(),
             'reply_to' => trim((string) setting('reply_to', '')),
+            // Envelope sender (Return-Path): where bounces are delivered. Empty = sender address.
+            'return_path' => trim((string) setting('bounce_return_path', '')),
         ];
     }
 
@@ -75,15 +77,16 @@ final class Mailer
         $data = self::build($cfg, $to, $subject, $html, $text, $extraHeaders);
         $client = $client ?: self::client();
         $wasConnected = $client->isConnected();
+        $envelopeFrom = !empty($cfg['return_path']) && nm_valid_email($cfg['return_path']) ? $cfg['return_path'] : $cfg['from_email'];
         try {
-            $client->send($cfg['from_email'], $to, $data);
+            $client->send($envelopeFrom, $to, $data);
         } catch (SmtpException $e) {
             if (!$e->connectionLevel || !$wasConnected) {
                 throw $e;
             }
             // The server may have dropped a long-lived connection: retry once on a fresh one.
             $client->close();
-            $client->send($cfg['from_email'], $to, $data);
+            $client->send($envelopeFrom, $to, $data);
         }
         db_exec('INSERT INTO send_log (sent_at) VALUES (?)', [nm_now()]);
     }

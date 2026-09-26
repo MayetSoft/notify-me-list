@@ -290,6 +290,37 @@ log in), they just use up part of the quota.
 Throughput = batch size × runs per hour, capped by those maximums. Defaults:
 20 per batch, 1 s apart, every 5 minutes → up to 240/hour, capped at 200/hour.
 
+### Bounces (dead addresses)
+
+When an address stops existing, the recipient's server sends an error e-mail
+back (a *bounce*). Sending again and again to dead addresses hurts your
+sender reputation and wastes your hosting quota, so Notify Me List handles
+them (Admin › **Bounces**, *Retours* in French):
+
+- **At send time**: a permanent refusal by your SMTP server (e.g. `550 5.1.1
+  user unknown`) counts immediately. Nothing to configure.
+- **Later, in your mailbox**: tick *Read bounces automatically*. The feed cron
+  job then reads the mailbox that receives the errors over IMAP, at most every
+  15 minutes (or click *Read the mailbox now*). By default it is the SMTP
+  account's own mailbox with the same credentials — on cPanel, same server,
+  port 993. Use *Test the connection* first.
+- It understands standard delivery reports (RFC 3464: Gmail, Outlook,
+  Postfix…) and cPanel/Exim's `X-Failed-Recipients` messages. Delay warnings
+  and out-of-office replies are ignored. Only the bounce e-mails themselves
+  are marked as read (or deleted, or left alone — your choice); all your other
+  mail stays untouched and unread.
+- **Permanent error** (address or domain does not exist): the subscriber is
+  deactivated after 1 of them (configurable). **Temporary error** (mailbox
+  full, anti-spam refusal, outage): after 5 within 30 days (configurable).
+- A deactivated subscriber receives nothing, appears on the Bounces page and
+  in the dashboard filter, and can be reactivated or deleted by you. If they
+  sign up again themselves, they start over normally.
+- Optional *Return-Path*: send bounces to another address than the sender
+  (e.g. a dedicated `bounces@yourdomain` mailbox). Some SMTP servers only
+  accept the account's own address here — keep it empty if sending fails.
+- No PHP `imap` extension needed (it is often missing, and removed from PHP
+  8.4): the IMAP client is built in.
+
 ### What if I have no cron at all?
 
 - **Sending still works**: keep the campaign page open in your browser, it
@@ -496,9 +527,11 @@ the browser; automatic feed monitoring does not exist without cron.
 
 **Deliverability.** Configure SPF and DKIM for your domain (cPanel ›
 *Email Deliverability*) and send from an address of that domain; otherwise
-your e-mails may land in spam. Bounces are not processed automatically: invalid
-addresses show up as failures on the campaign page (for immediate SMTP
-refusals) and you can delete them.
+your e-mails may land in spam. Dead addresses are handled by
+[bounce handling](#bounces-dead-addresses); its detection relies on the usual
+bounce formats (standard delivery reports, cPanel/Exim, most big providers) —
+an exotic bounce format may go unnoticed, and a bounce that arrives after the
+message was quoted in a forwarded thread is ignored on purpose.
 
 **Other.** One list per install (plus feeds). No WYSIWYG editor, no
 attachments, no scheduling of manual messages, no open/click statistics (by

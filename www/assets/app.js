@@ -16,18 +16,17 @@
     }
   });
 
-  // SMTP: suggest the usual port when the encryption changes.
-  var enc = document.querySelector('select[data-port-hint]');
-  if (enc) {
+  // SMTP / IMAP: suggest the usual port when the encryption changes.
+  Array.prototype.forEach.call(document.querySelectorAll('select[data-port-hint]'), function (enc) {
     var port = document.getElementById(enc.getAttribute('data-port-hint'));
-    var defaults = { tls: '587', ssl: '465', none: '25' };
+    var defaults = enc.getAttribute('data-ports') ? JSON.parse(enc.getAttribute('data-ports')) : { tls: '587', ssl: '465', none: '25' };
     enc.addEventListener('change', function () {
       var values = Object.keys(defaults).map(function (k) { return defaults[k]; });
       if (port && (port.value === '' || values.indexOf(port.value) !== -1)) {
         port.value = defaults[enc.value] || port.value;
       }
     });
-  }
+  });
 
   // Campaign sending: calls admin/api.php chunk after chunk.
   var box = document.getElementById('campaign');
