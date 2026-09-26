@@ -5,3 +5,4 @@ notifyme/data/*
 notifyme/config.local.php
 www/notifyme-path.php
 .DS_Store
+/dist/

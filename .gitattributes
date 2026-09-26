@@ -1,0 +1,10 @@
+# Keep release archives (tools/build-release.sh and GitHub's "Source code"
+# downloads) limited to what goes on the server.
+/tests export-ignore
+/tools export-ignore
+/.github export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+
+* text=auto eol=lf
+*.png binary
