@@ -87,7 +87,7 @@
       if (p.status && p.status !== 'sending') { stop(''); return; }
       if (!p.pending) { stop(''); return; }
       if (r.busy) { setStatus(data.messages.busy); timer = setTimeout(step, 10000); return; }
-      if (r.throttled) { setStatus(data.messages.throttled); timer = setTimeout(step, 60000); return; }
+      if (r.throttled) { setStatus(data.messages.throttled); timer = setTimeout(step, r.host_limit ? 300000 : 60000); return; }
       if (r.sent + r.failed + r.skipped === 0) {
         // Only retries scheduled later remain.
         timer = setTimeout(step, 30000); return;

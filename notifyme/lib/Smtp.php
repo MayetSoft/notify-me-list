@@ -23,6 +23,21 @@ class SmtpException extends RuntimeException
     {
         return $this->connectionLevel || ($this->smtpCode >= 400 && $this->smtpCode < 500);
     }
+
+    /**
+     * The server refuses because a sending limit/quota was reached (shared
+     * hosting caps). Such refusals are about the account, not the recipient:
+     * cPanel's Exim for instance answers "550 Domain example.com has exceeded
+     * the max emails per hour (100/100 (100%)) allowed", a 5xx code that would
+     * otherwise look like a bad address.
+     */
+    public function isRateLimit(): bool
+    {
+        return (bool) preg_match(
+            '/exceeded the max (emails|defers)|max(imum)? (emails|messages|recipients) per|rate.?limit|too many (messages|emails|mails|recipients|connections)|sending (limit|quota)|quota exceeded|over quota|limit (exceeded|reached)|throttl/i',
+            $this->getMessage()
+        );
+    }
 }
 
 class SmtpClient

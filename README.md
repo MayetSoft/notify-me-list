@@ -60,7 +60,7 @@ Docker, no daemon. MIT licensed, every line is in this repository.
   health warnings (SMTP not set, cron not running, failing feeds…).
 - **Send a message**: subject + text or simple HTML, preview, send. One
   individual e-mail per subscriber (never a BCC blast), each with its own
-  unsubscribe link, in batches with a delay and an hourly cap. Live progress
+  unsubscribe link, in batches with a delay, hourly and daily caps, and automatic pausing when the host reports its sending quota is reached. Live progress
   bar in the browser (chunked AJAX), with the cron job as a background relay.
 - **Feeds**: add / edit / pause / delete RSS or Atom feeds (auto-detected),
   each with its own check frequency, subscriber count and error status.
@@ -262,9 +262,33 @@ Notes:
 - Test by hand (cPanel › *Terminal*, if available):
   `php ~/notifyme/cron/check-feeds.php --force -v`
 
-**Throughput** = batch size × runs per hour, capped by "maximum per hour"
-(Admin › Settings). Defaults: 20 per batch, 1 s apart, every 5 minutes →
-up to 240/hour, capped at 200/hour.
+### Sending rate limits (shared hosting mail quotas)
+
+cPanel hosts usually cap how many e-mails an account may send per hour
+(sometimes also per day). Every list e-mail is sent individually, so the
+queue paces itself with five safeguards, all in Admin › Settings › *Sending
+pace*:
+
+| Safeguard | Default | What it does |
+|---|---|---|
+| Pause between two e-mails | 1000 ms | spreads the e-mails out inside a batch |
+| E-mails per batch | 20 | per cron run / per browser step |
+| Maximum per hour | 200 | rolling 60 minutes; sending stops before the server is contacted |
+| Maximum per day | 0 (off) | rolling 24 hours, for hosts with a daily quota |
+| Host-limit detection | always on | if the SMTP server still refuses because a quota is reached (e.g. cPanel's *"Domain … has exceeded the max emails per hour … Message discarded"*), the e-mail is **put back in the queue, not marked failed**, and all sending pauses for one hour, then resumes by itself. A banner shows the pause and offers *Resume now*. |
+
+On top of that, a run stops after **5 refusals in a row** (a sign of an
+account or server problem rather than bad addresses), so a misconfiguration
+can never mark your whole list as failed.
+
+The hourly and daily counts include every e-mail the app sends — welcome,
+confirmation and login e-mails too — because the host counts them as well.
+Those transactional e-mails are never blocked by the caps (so you can always
+log in), they just use up part of the quota.
+
+**Set the maximums a little below your host's published limits.**
+Throughput = batch size × runs per hour, capped by those maximums. Defaults:
+20 per batch, 1 s apart, every 5 minutes → up to 240/hour, capped at 200/hour.
 
 ### What if I have no cron at all?
 
@@ -428,8 +452,15 @@ opened in an iframe **from the same domain** (other domains are blocked by
 **Shared-hosting mail limits.** Most shared hosts cap outgoing e-mails per hour
 and/or per day (often a few hundred per hour, sometimes per mailbox); going
 over can get messages refused or your account suspended. Check your host's
-documentation and set *Maximum per hour* below that limit. The default
-(200/hour) is conservative.
+documentation and set *Maximum per hour* (and *Maximum per day* if your host
+has a daily quota) below those limits. The default (200/hour) is
+conservative; if the server refuses anyway, sending pauses instead of failing
+(see [Sending rate limits](#sending-rate-limits-shared-hosting-mail-quotas)).
+The detection recognises the usual wordings (cPanel/Exim "exceeded the max
+emails per hour", "rate limit", "quota exceeded", "too many messages"…); a
+host using an unusual message is still caught by the 5-refusals-in-a-row
+stop, but those 5 addresses are then marked failed — use *Retry failures* on
+the campaign page.
 
 **Scale.**
 - *Up to a few thousand subscribers*: fine. SQLite handles it easily; a

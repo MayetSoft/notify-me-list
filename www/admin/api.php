@@ -31,7 +31,9 @@ if ($action === 'process') {
         'progress' => $cid > 0 ? Queue::progress($cid) : null,
         'messages' => [
             'busy' => t('campaign.js_busy'),
-            'throttled' => t('campaign.js_throttled'),
+            'throttled' => $result['host_limit'] !== ''
+                ? t('campaign.js_host_limit', ['time' => nm_format_date(Queue::pausedUntil()), 'error' => $result['host_limit']])
+                : t('campaign.js_throttled'),
             'smtp_error' => $result['smtp_error'] !== '' ? t('campaign.js_smtp_error', ['error' => $result['smtp_error']]) : '',
         ],
     ]);

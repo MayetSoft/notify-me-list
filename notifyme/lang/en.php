@@ -189,6 +189,7 @@ return [
     'digest.footer_why' => 'You receive this e-mail because you follow these feeds.',
     'digest.manage_feeds' => 'Choose my feeds',
     'queue.digest_subject' => '{count} new items on {site}',
+    'queue.too_many_failures' => 'Sending stopped after {n} refusals in a row, which points to an account or server problem. Last answer: {error}',
     'queue.feed_campaign_label' => 'Feeds: {feeds} ({n} new item(s))',
 
     // Admin: login
@@ -280,10 +281,14 @@ return [
     'campaign.errors' => 'Latest errors',
     'campaign.content' => 'Content',
     'campaign.none' => 'No sending yet.',
-    'campaign.list_intro' => '{n} e-mail(s) in the queue · {hour} sent in the last hour (limit: {max}).',
+    'campaign.list_intro' => '{n} e-mail(s) in the queue · {hour} sent in the last hour (limit: {max}) · {day} in 24 hours (limit: {maxday}).',
     'campaign.help_background' => 'Keep this page open to send from the browser, batch after batch. If you close it, the send-queue.php cron job carries on (if it is set up).',
     'campaign.js_busy' => 'Another sending is in progress (cron job?). Trying again in a few seconds…',
     'campaign.js_throttled' => 'Hourly limit reached: sending will resume automatically (keep the page open or let the cron job do it).',
+    'campaign.js_host_limit' => 'The SMTP server says the hosting sending limit is reached. Sending suspended until {time}, it will resume automatically. Server answer: {error}',
+    'campaign.host_paused' => 'Sending suspended until {time}: the SMTP server reported that your hosting sending limit is reached. E-mails stay in the queue and will go out automatically afterwards.',
+    'campaign.resume_now' => 'Resume now',
+    'campaign.pause_cleared' => 'Suspension lifted: sending resumes.',
     'campaign.js_smtp_error' => 'Sending stopped, SMTP error: {error}',
 
     // Admin: feeds
@@ -410,7 +415,8 @@ return [
     'settings.batch_size' => 'E-mails per batch',
     'settings.send_delay_ms' => 'Pause between two e-mails (ms)',
     'settings.max_per_hour' => 'Maximum per hour (0 = unlimited)',
-    'settings.sending_help' => 'One batch = one run of the sending cron job or one step of sending from the browser. Keep the hourly maximum below your host\'s limit (see its documentation).',
+    'settings.max_per_day' => 'Maximum per day (0 = unlimited)',
+    'settings.sending_help' => 'One batch = one run of the sending cron job or one step of sending from the browser. Set the hourly and daily maximums a little below your host\'s limits (see its documentation): they count every e-mail sent, including welcome, confirmation and login e-mails. If the SMTP server still refuses an e-mail because a limit was reached, all sending is suspended for one hour and then resumes by itself, without marking subscribers as failed.',
     'settings.section_feeds' => 'Feed e-mails',
     'settings.feed_subject' => 'Subject of feed update e-mails',
     'settings.feed_subject_help' => '{site} = site name, {count} = number of new items. When there is only one new item, the subject is "Feed: title".',

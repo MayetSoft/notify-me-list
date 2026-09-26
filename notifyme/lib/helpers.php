@@ -189,6 +189,8 @@ function nm_default_settings(): array
         'batch_size' => '20',
         'send_delay_ms' => '1000',
         'max_per_hour' => '200',
+        'max_per_day' => '0',               // 0 = no daily cap
+        'send_paused_until' => '0',         // set when the SMTP server reports a sending limit
         'feed_max_items' => '10',
         'feed_subject' => 'Nouveautés sur {site}',
         'pending_days' => '30',

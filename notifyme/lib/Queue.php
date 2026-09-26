@@ -11,6 +11,10 @@
 final class Queue
 {
     const MAX_ATTEMPTS = 3;
+    /** Stop a run after this many recipient failures in a row (something is wrong server-side). */
+    const MAX_CONSECUTIVE_FAILURES = 5;
+    /** Pause after the SMTP server reported a sending limit, in seconds. */
+    const HOST_LIMIT_PAUSE = 3600;
     const STALE_AFTER = 600; // a row stuck in "sending" for 10 min is considered interrupted
 
     // --- Audiences -------------------------------------------------------------
@@ -251,13 +255,42 @@ final class Queue
         return (int) db_value('SELECT COUNT(*) FROM send_log WHERE sent_at > ?', [nm_now() - 3600]);
     }
 
+    public static function sentLastDay(): int
+    {
+        return (int) db_value('SELECT COUNT(*) FROM send_log WHERE sent_at > ?', [nm_now() - 86400]);
+    }
+
+    /** Timestamp until which sending is paused because the host refused mail for quota reasons (0 = not paused). */
+    public static function pausedUntil(): int
+    {
+        $t = (int) setting('send_paused_until', 0);
+        return $t > nm_now() ? $t : 0;
+    }
+
+    public static function clearPause(): void
+    {
+        setting_set('send_paused_until', '0');
+        setting_set('send_paused_reason', '');
+    }
+
     /**
      * Sends up to $max e-mails within $timeBudget seconds.
-     * Returns ['sent','failed','skipped','remaining','busy','throttled','smtp_error'].
+     * Returns ['sent','failed','skipped','remaining','busy','throttled','host_limit','smtp_error'].
+     *
+     * Rate limiting, in order: a pause after the host reported a quota
+     * refusal, the daily cap, the hourly cap (both counted on every e-mail
+     * actually sent, transactional ones included), the batch size ($max),
+     * and the delay between two e-mails.
      */
     public static function process(int $max, int $timeBudget, ?int $campaignId = null): array
     {
-        $r = ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'remaining' => 0, 'busy' => false, 'throttled' => false, 'smtp_error' => ''];
+        $r = ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'remaining' => 0, 'busy' => false, 'throttled' => false, 'host_limit' => '', 'smtp_error' => ''];
+        if (self::pausedUntil() > 0) {
+            $r['throttled'] = true;
+            $r['host_limit'] = (string) setting('send_paused_reason', '');
+            $r['remaining'] = self::remaining($campaignId);
+            return $r;
+        }
         $lock = nm_lock('queue');
         if (!$lock) {
             $r['busy'] = true;
@@ -273,14 +306,17 @@ final class Queue
             db_exec("UPDATE queue SET status = 'failed', error = 'interrupted', updated_at = ? WHERE status = 'sending' AND updated_at < ?", [$now, $now - self::STALE_AFTER]);
 
             $maxHour = setting_int('max_per_hour', 0, 1000000);
+            $maxDay = setting_int('max_per_day', 0, 10000000);
             $delayUs = setting_int('send_delay_ms', 0, 60000) * 1000;
             $sentHour = $maxHour > 0 ? self::sentLastHour() : 0;
+            $sentDay = $maxDay > 0 ? self::sentLastDay() : 0;
             $start = microtime(true);
             $campaigns = [];
             $done = 0;
+            $failStreak = 0;
 
             while ($done < $max && (microtime(true) - $start) < $timeBudget) {
-                if ($maxHour > 0 && $sentHour >= $maxHour) {
+                if (($maxHour > 0 && $sentHour >= $maxHour) || ($maxDay > 0 && $sentDay >= $maxDay)) {
                     $r['throttled'] = true;
                     break;
                 }
@@ -326,7 +362,20 @@ final class Queue
                     db_exec("UPDATE queue SET status = 'sent', sent_at = ?, updated_at = ?, error = '' WHERE id = ?", [nm_now(), nm_now(), $row['id']]);
                     $r['sent']++;
                     $sentHour++;
+                    $sentDay++;
+                    $failStreak = 0;
                 } catch (SmtpException $e) {
+                    if ($e->isRateLimit()) {
+                        // The host's own limit: not this recipient's fault. Put the
+                        // e-mail back, pause ALL sending, resume automatically later.
+                        db_exec("UPDATE queue SET status = 'pending', updated_at = ?, error = ? WHERE id = ?", [nm_now(), mb_substr($e->getMessage(), 0, 500), $row['id']]);
+                        setting_set('send_paused_until', (string) (nm_now() + self::HOST_LIMIT_PAUSE));
+                        setting_set('send_paused_reason', mb_substr($e->getMessage(), 0, 500));
+                        $r['throttled'] = true;
+                        $r['host_limit'] = $e->getMessage();
+                        nm_log('queue', 'Host sending limit reached, sending paused for ' . (self::HOST_LIMIT_PAUSE / 60) . ' min: ' . $e->getMessage());
+                        break;
+                    }
                     if ($e->connectionLevel) {
                         // Server unreachable / auth refused: put the row back and stop this run.
                         db_exec("UPDATE queue SET status = 'pending', updated_at = ?, error = ? WHERE id = ?", [nm_now(), mb_substr($e->getMessage(), 0, 500), $row['id']]);
@@ -345,6 +394,14 @@ final class Queue
                         $r['failed']++;
                     }
                     nm_log('queue', 'Send to ' . $sub['email'] . ' failed: ' . $e->getMessage());
+                    // Several refusals in a row usually mean an account-level problem
+                    // worded in a way we do not recognise: stop instead of burning the list.
+                    if (++$failStreak >= self::MAX_CONSECUTIVE_FAILURES) {
+                        $r['smtp_error'] = t('queue.too_many_failures', ['n' => $failStreak, 'error' => $e->getMessage()]);
+                        nm_log('queue', 'Run stopped after ' . $failStreak . ' consecutive failures');
+                        $done++;
+                        break;
+                    }
                 } catch (Throwable $e) {
                     self::mark($row['id'], 'failed', $e->getMessage());
                     $r['failed']++;

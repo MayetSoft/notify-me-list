@@ -42,6 +42,9 @@ if ($feeds && $lastFeeds < nm_now() - 3 * 3600) {
 if ($queued > 0 && $lastQueue < nm_now() - 3600) {
     $warnings[] = ['warning', t('dashboard.warn_cron_queue', ['n' => $queued]), 'admin/cron.php'];
 }
+if (Queue::pausedUntil() > 0) {
+    $warnings[] = ['warning', t('campaign.host_paused', ['time' => nm_format_date(Queue::pausedUntil())]), 'admin/campaigns.php'];
+}
 $failingFeeds = array_filter($feeds, function ($f) {
     return (int) $f['error_count'] >= 3 && (int) $f['active'] === 1;
 });

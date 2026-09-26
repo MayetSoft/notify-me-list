@@ -50,7 +50,7 @@ if (!$noSend && Queue::remaining() > 0) {
     setting_set('cron_last_queue', (string) nm_now());
     if ($verbose) {
         printf("Sent: %d, failed: %d, skipped: %d, remaining: %d%s\n", $r['sent'], $r['failed'], $r['skipped'], $r['remaining'],
-            $r['busy'] ? ' (another process is sending)' : ($r['throttled'] ? ' (hourly limit reached)' : ($r['smtp_error'] ? ' SMTP: ' . $r['smtp_error'] : '')));
+            $r['busy'] ? ' (another process is sending)' : ($r['throttled'] ? ($r['host_limit'] !== '' ? ' (paused: SMTP server sending limit — ' . $r['host_limit'] . ')' : ' (hourly/daily limit reached)') : ($r['smtp_error'] ? ' SMTP: ' . $r['smtp_error'] : '')));
     }
 }
 

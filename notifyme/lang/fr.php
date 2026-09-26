@@ -189,6 +189,7 @@ return [
     'digest.footer_why' => 'Vous recevez cet e-mail car vous suivez ces flux.',
     'digest.manage_feeds' => 'Choisir mes flux',
     'queue.digest_subject' => '{count} nouveautés sur {site}',
+    'queue.too_many_failures' => 'Envoi arrêté après {n} refus d’affilée, ce qui indique plutôt un problème de compte ou de serveur. Dernière réponse : {error}',
     'queue.feed_campaign_label' => 'Flux : {feeds} ({n} nouveauté(s))',
 
     // Admin: login
@@ -280,10 +281,14 @@ return [
     'campaign.errors' => 'Dernières erreurs',
     'campaign.content' => 'Contenu',
     'campaign.none' => 'Aucun envoi pour l’instant.',
-    'campaign.list_intro' => '{n} e-mail(s) en file d’attente · {hour} envoyé(s) dans la dernière heure (limite : {max}).',
+    'campaign.list_intro' => '{n} e-mail(s) en file d’attente · {hour} envoyé(s) dans la dernière heure (limite : {max}) · {day} sur 24 heures (limite : {maxday}).',
     'campaign.help_background' => 'Gardez cette page ouverte pour envoyer depuis le navigateur, lot par lot. Si vous la fermez, la tâche cron send-queue.php continue l’envoi (si elle est configurée).',
     'campaign.js_busy' => 'Un autre envoi est en cours (tâche cron ?). Nouvel essai dans quelques secondes…',
     'campaign.js_throttled' => 'Limite horaire atteinte : l’envoi reprendra automatiquement (gardez la page ouverte ou laissez faire la tâche cron).',
+    'campaign.js_host_limit' => 'Le serveur SMTP signale que la limite d’envoi de l’hébergement est atteinte. Envois suspendus jusqu’au {time}, reprise automatique. Réponse du serveur : {error}',
+    'campaign.host_paused' => 'Envois suspendus jusqu’au {time} : le serveur SMTP a signalé que la limite d’envoi de votre hébergement est atteinte. Les e-mails restent en file d’attente et partiront ensuite automatiquement.',
+    'campaign.resume_now' => 'Reprendre maintenant',
+    'campaign.pause_cleared' => 'Suspension levée : les envois reprennent.',
     'campaign.js_smtp_error' => 'Envoi interrompu, erreur SMTP : {error}',
 
     // Admin: feeds
@@ -410,7 +415,8 @@ return [
     'settings.batch_size' => 'E-mails par lot',
     'settings.send_delay_ms' => 'Pause entre deux e-mails (ms)',
     'settings.max_per_hour' => 'Maximum par heure (0 = illimité)',
-    'settings.sending_help' => 'Un lot = une exécution de la tâche cron d’envoi ou une étape de l’envoi depuis le navigateur. Réglez le maximum par heure sous la limite de votre hébergeur (consultez sa documentation).',
+    'settings.max_per_day' => 'Maximum par jour (0 = illimité)',
+    'settings.sending_help' => 'Un lot = une exécution de la tâche cron d’envoi ou une étape de l’envoi depuis le navigateur. Réglez les maximums par heure et par jour un peu sous les limites de votre hébergeur (voir sa documentation) : ils comptent tous les e-mails envoyés, y compris bienvenue, confirmations et liens de connexion. Si le serveur SMTP refuse malgré tout un e-mail pour cause de limite atteinte, tous les envois sont suspendus une heure puis reprennent seuls, sans marquer les abonnés en échec.',
     'settings.section_feeds' => 'E-mails des flux',
     'settings.feed_subject' => 'Objet des e-mails de nouveautés',
     'settings.feed_subject_help' => '{site} = nom du site, {count} = nombre de nouveautés. Quand il n’y a qu’une nouveauté, l’objet est « Flux : titre ».',

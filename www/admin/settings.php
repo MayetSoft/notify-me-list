@@ -10,7 +10,7 @@ $errors = [];
 $fields = [
     'site_name', 'admin_email', 'base_url', 'language', 'timezone', 'optin_mode', 'unsubscribe_confirm',
     'general_list_label', 'consent_text', 'privacy_url', 'privacy_text', 'batch_size', 'send_delay_ms',
-    'max_per_hour', 'feed_max_items', 'feed_subject', 'pending_days',
+    'max_per_hour', 'max_per_day', 'feed_max_items', 'feed_subject', 'pending_days',
 ];
 $v = [];
 foreach ($fields as $f) {
@@ -51,6 +51,7 @@ if (nm_is_post()) {
     $v['batch_size'] = (string) max(1, min(500, (int) $v['batch_size']));
     $v['send_delay_ms'] = (string) max(0, min(60000, (int) $v['send_delay_ms']));
     $v['max_per_hour'] = (string) max(0, min(1000000, (int) $v['max_per_hour']));
+    $v['max_per_day'] = (string) max(0, min(10000000, (int) $v['max_per_day']));
     $v['feed_max_items'] = (string) max(1, min(50, (int) $v['feed_max_items']));
     $v['pending_days'] = (string) max(1, min(3650, (int) $v['pending_days']));
 
@@ -156,7 +157,7 @@ nm_layout_start('admin', t('nav.settings'), 'settings');
 
   <section class="card">
     <h2><?= e(t('settings.section_sending')) ?></h2>
-    <div class="grid-3">
+    <div class="grid-2">
       <div>
         <label for="batch_size"><?= e(t('settings.batch_size')) ?></label>
         <input id="batch_size" name="batch_size" type="number" min="1" max="500" value="<?= e($v['batch_size']) ?>">
@@ -168,6 +169,10 @@ nm_layout_start('admin', t('nav.settings'), 'settings');
       <div>
         <label for="max_per_hour"><?= e(t('settings.max_per_hour')) ?></label>
         <input id="max_per_hour" name="max_per_hour" type="number" min="0" value="<?= e($v['max_per_hour']) ?>">
+      </div>
+      <div>
+        <label for="max_per_day"><?= e(t('settings.max_per_day')) ?></label>
+        <input id="max_per_day" name="max_per_day" type="number" min="0" value="<?= e($v['max_per_day']) ?>">
       </div>
     </div>
     <p class="help"><?= e(t('settings.sending_help')) ?></p>

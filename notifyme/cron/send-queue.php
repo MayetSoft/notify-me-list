@@ -39,7 +39,7 @@ for ($i = 0; $i < $batches; $i++) {
     }
     if ($verbose) {
         printf("Batch %d — sent: %d, failed: %d, skipped: %d, remaining: %d%s\n", $i + 1, $r['sent'], $r['failed'], $r['skipped'], $r['remaining'],
-            $r['busy'] ? ' (another process is sending)' : ($r['throttled'] ? ' (hourly limit reached)' : ($r['smtp_error'] ? ' SMTP: ' . $r['smtp_error'] : '')));
+            $r['busy'] ? ' (another process is sending)' : ($r['throttled'] ? ($r['host_limit'] !== '' ? ' (paused: SMTP server sending limit — ' . $r['host_limit'] . ')' : ' (hourly/daily limit reached)') : ($r['smtp_error'] ? ' SMTP: ' . $r['smtp_error'] : '')));
     }
     if ($r['busy'] || $r['throttled'] || $r['smtp_error'] !== '') {
         break;

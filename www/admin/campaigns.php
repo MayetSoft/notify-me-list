@@ -10,6 +10,12 @@ if (nm_is_post()) {
     csrf_check();
     $cid = (int) nm_post('id');
     $action = nm_post('action');
+    if ($action === 'clear_pause') {
+        Queue::clearPause();
+        nm_log('queue', 'Host-limit pause lifted by the admin');
+        flash('success', t('campaign.pause_cleared'));
+        nm_redirect(nm_link('admin/campaigns.php', $cid ? ['id' => $cid, 'autostart' => 1] : []));
+    }
     if ($action === 'pause') {
         Queue::setStatus($cid, 'paused');
     } elseif ($action === 'resume') {
@@ -38,6 +44,7 @@ if ($campaign):
 ?>
 <p><a href="<?= e(nm_link('admin/campaigns.php')) ?>">← <?= e(t('nav.campaigns')) ?></a></p>
 <h1><?= e($campaign['subject']) ?></h1>
+<?php require NM_ROOT . '/templates/host-pause.php'; ?>
 <p class="muted">
   <?= e(t('campaign.kind_' . $campaign['kind'])) ?> · <?= e(Queue::audienceLabel($campaign['audience'])) ?> · <?= e(nm_format_date($campaign['created_at'])) ?>
 </p>
@@ -117,7 +124,8 @@ $queued = Queue::remaining();
 nm_layout_start('admin', t('nav.campaigns'), 'campaigns');
 ?>
 <h1><?= e(t('nav.campaigns')) ?></h1>
-<p class="muted"><?= e(t('campaign.list_intro', ['n' => $queued, 'hour' => Queue::sentLastHour(), 'max' => setting_int('max_per_hour', 0, 1000000) ?: '∞'])) ?></p>
+<?php require NM_ROOT . '/templates/host-pause.php'; ?>
+<p class="muted"><?= e(t('campaign.list_intro', ['n' => $queued, 'hour' => Queue::sentLastHour(), 'max' => setting_int('max_per_hour', 0, 1000000) ?: '∞', 'day' => Queue::sentLastDay(), 'maxday' => setting_int('max_per_day', 0, 10000000) ?: '∞'])) ?></p>
 <?php if (!$rows): ?>
   <p class="muted"><?= e(t('campaign.none')) ?></p>
 <?php else: ?>
