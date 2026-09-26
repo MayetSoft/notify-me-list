@@ -1,0 +1,4 @@
+<?php
+// Only needed if the private "notifyme" folder is not found automatically.
+// Copy this file to notifyme-path.php and put the ABSOLUTE path of that folder:
+return '/home/YOUR_CPANEL_USER/notifyme';

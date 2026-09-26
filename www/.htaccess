@@ -1,0 +1,25 @@
+# Notify Me List — public folder protections (Apache / LiteSpeed)
+
+Options -Indexes
+
+# Never serve database files, logs, lock files or PHP include-only files.
+<FilesMatch "(\.(sqlite|sqlite3|db|db-journal|sqlite-journal|sqlite-wal|sqlite-shm|log|lock|ini|example|md)$|^_boot\.php$|^notifyme-path\.php$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Fallback layout (private folder uploaded inside the web root): deny it entirely.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^notifyme(/|$) - [F,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+</IfModule>
